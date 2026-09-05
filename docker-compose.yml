@@ -1,0 +1,16 @@
+services:
+  farefit:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PLAYWRIGHT_HEADLESS: "0"
+    volumes:
+      - farefit-cache:/app/.cache
+      - farefit-profile:/app/.playwright-profile
+    shm_size: "1gb"
+    restart: unless-stopped
+
+volumes:
+  farefit-cache:
+  farefit-profile:

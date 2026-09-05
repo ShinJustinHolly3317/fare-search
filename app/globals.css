@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f3eee4;
+  --ink: #1c1814;
+  --muted: #6f675e;
+  --line: #d4cbbd;
+  --price: #9f3a2a;
+  --fill: #ebe4d8;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-price: var(--price);
+  --color-fill: var(--fill);
+  --font-sans: var(--font-plex), var(--font-noto-tc), sans-serif;
+  --font-mono: var(--font-plex-mono);
+  --font-display: var(--font-fraunces);
+}
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+input[type="text"] {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="time"],
+input[type="number"],
+select {
+  background: var(--fill);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 0;
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  width: 100%;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+html[lang="zh-TW"] {
+  --font-sans: var(--font-noto-tc), var(--font-plex), sans-serif;
+}
+
+html[lang="zh-TW"] label,
+html[lang="zh-TW"] legend {
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
