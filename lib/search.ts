@@ -13,6 +13,7 @@ import {
   MAX_DATE_PAIRS,
   MAX_RETURN_LOOKUPS_PER_PAIR,
   SEARCH_CONCURRENCY,
+  isWeekendOverlap,
   type DatePair,
   type Dump,
   type Itinerary,
@@ -52,6 +53,16 @@ export function validateQuery(body: unknown): SearchQuery {
     maxLayoverMinutes = value;
   }
 
+  const minStayDays = optionalDays(raw.minStayDays, "minStayDays");
+  const maxStayDays = optionalDays(raw.maxStayDays, "maxStayDays");
+  if (minStayDays != null && maxStayDays != null && minStayDays > maxStayDays) {
+    throw new Error("minStayDays cannot be greater than maxStayDays");
+  }
+
+  const weekendOverlap = isWeekendOverlap(raw.weekendOverlap)
+    ? raw.weekendOverlap
+    : "any";
+
   return {
     origin,
     destination,
@@ -63,8 +74,20 @@ export function validateQuery(body: unknown): SearchQuery {
     inbound: asWindow(raw.inbound),
     maxStops,
     maxLayoverMinutes,
+    minStayDays,
+    maxStayDays,
+    weekendOverlap,
     allowAirportChange: Boolean(raw.allowAirportChange),
   };
+}
+
+function optionalDays(value: unknown, field: string): number | null {
+  if (value === null || value === "" || value == null) return null;
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < 1) {
+    throw new Error(`${field} must be a positive integer or empty`);
+  }
+  return days;
 }
 
 function asWindow(value: unknown): SearchQuery["outbound"] {
@@ -272,6 +295,11 @@ export async function* runSearch(
       query.outboundTo,
       query.returnFrom,
       query.returnTo,
+      {
+        minDays: query.minStayDays,
+        maxDays: query.maxStayDays,
+        weekendOverlap: query.weekendOverlap,
+      },
     );
     assertPairCap(pairs.length);
   } catch (error) {
@@ -286,7 +314,8 @@ export async function* runSearch(
   if (pairs.length === 0) {
     yield {
       type: "error",
-      message: "No valid date pairs. Return dates must be after outbound dates.",
+      message:
+        "No valid date pairs. Return must be after outbound, and stay / weekend filters must fit.",
     };
     return;
   }

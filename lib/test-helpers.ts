@@ -45,6 +45,9 @@ export function makeQuery(overrides: Partial<SearchQuery> = {}): SearchQuery {
     inbound: { ...emptyWindow, ...overrides.inbound },
     maxStops: 1,
     maxLayoverMinutes: 180,
+    minStayDays: null,
+    maxStayDays: null,
+    weekendOverlap: "any",
     allowAirportChange: false,
     ...overrides,
   };

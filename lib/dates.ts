@@ -1,4 +1,4 @@
-import { MAX_DATE_PAIRS, type DatePair } from "./types";
+import { MAX_DATE_PAIRS, type DatePair, type WeekendOverlap } from "./types";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -31,8 +31,53 @@ export function eachDate(from: string, to: string): string[] {
   return out;
 }
 
+/** 回程減去程的整天數。10 號走、14 號回 = 4 天 */
+export function stayDays(outboundDate: string, returnDate: string): number {
+  const ms =
+    parseIsoDate(returnDate).getTime() - parseIsoDate(outboundDate).getTime();
+  return Math.round(ms / 86_400_000);
+}
+
+export type StayFilter = {
+  minDays?: number | null;
+  maxDays?: number | null;
+  weekendOverlap?: WeekendOverlap;
+};
+
+/**
+ * 含出發日與回程日。只看有沒有碰到週六／週日，
+ * 不是把跨兩週的週六加總成 2 天。
+ */
+export function weekendCoverage(
+  outboundDate: string,
+  returnDate: string,
+): { saturday: boolean; sunday: boolean } {
+  let saturday = false;
+  let sunday = false;
+  for (const iso of eachDate(outboundDate, returnDate)) {
+    const day = parseIsoDate(iso).getUTCDay();
+    if (day === 6) saturday = true;
+    else if (day === 0) sunday = true;
+    if (saturday && sunday) break;
+  }
+  return { saturday, sunday };
+}
+
+export function fitsWeekendOverlap(
+  outboundDate: string,
+  returnDate: string,
+  overlap: WeekendOverlap = "any",
+): boolean {
+  if (overlap === "any") return true;
+  const { saturday, sunday } = weekendCoverage(outboundDate, returnDate);
+  if (overlap === "none") return !saturday && !sunday;
+  if (overlap === "atLeastOne") return saturday || sunday;
+  return saturday && sunday;
+}
+
 /**
  * 去程日期 × 回程日期。回程必須晚於去程。
+ * stay 用來砍掉太短／太長的組合，避免白抓 7 天的票。
  * 不在這裡丟 cap error，方便表單先算數量。
  */
 export function expandDatePairs(
@@ -40,13 +85,18 @@ export function expandDatePairs(
   outboundTo: string,
   returnFrom: string,
   returnTo: string,
+  stay?: StayFilter,
 ): DatePair[] {
   const pairs: DatePair[] = [];
+  const weekendOverlap = stay?.weekendOverlap ?? "any";
   for (const outboundDate of eachDate(outboundFrom, outboundTo)) {
     for (const returnDate of eachDate(returnFrom, returnTo)) {
-      if (returnDate > outboundDate) {
-        pairs.push({ outboundDate, returnDate });
-      }
+      if (returnDate <= outboundDate) continue;
+      const days = stayDays(outboundDate, returnDate);
+      if (stay?.minDays != null && days < stay.minDays) continue;
+      if (stay?.maxDays != null && days > stay.maxDays) continue;
+      if (!fitsWeekendOverlap(outboundDate, returnDate, weekendOverlap)) continue;
+      pairs.push({ outboundDate, returnDate });
     }
   }
   return pairs;

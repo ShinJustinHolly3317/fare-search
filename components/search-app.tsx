@@ -22,6 +22,7 @@ import {
   type RejectReason,
   type SearchEvent,
   type SearchQuery,
+  isWeekendOverlap,
 } from "@/lib/types";
 
 const STORAGE_KEY = "farefit.form.v1";
@@ -60,6 +61,9 @@ function defaultQuery(): SearchQuery {
     inbound: { departAfter: "09:00", departBefore: "18:00", arriveBefore: "21:00" },
     maxStops: 1,
     maxLayoverMinutes: 180,
+    minStayDays: null,
+    maxStayDays: null,
+    weekendOverlap: "any",
     allowAirportChange: false,
   };
 }
@@ -68,7 +72,14 @@ function loadQuery(): SearchQuery {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultQuery();
-    return { ...defaultQuery(), ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw) as Partial<SearchQuery>;
+    return {
+      ...defaultQuery(),
+      ...parsed,
+      weekendOverlap: isWeekendOverlap(parsed.weekendOverlap)
+        ? parsed.weekendOverlap
+        : "any",
+    };
   } catch {
     return defaultQuery();
   }
@@ -195,18 +206,38 @@ export function SearchApp() {
   const abortRef = useRef<AbortController | null>(null);
 
   const pairInfo = useMemo(() => {
+    if (
+      form.minStayDays != null &&
+      form.maxStayDays != null &&
+      form.minStayDays > form.maxStayDays
+    ) {
+      return { count: 0, invalid: "stay" as const };
+    }
     try {
       const pairs = expandDatePairs(
         form.outboundFrom,
         form.outboundTo,
         form.returnFrom,
         form.returnTo,
+        {
+          minDays: form.minStayDays,
+          maxDays: form.maxStayDays,
+          weekendOverlap: form.weekendOverlap,
+        },
       );
-      return { count: pairs.length, invalid: false };
+      return { count: pairs.length, invalid: false as const };
     } catch {
-      return { count: 0, invalid: true };
+      return { count: 0, invalid: "dates" as const };
     }
-  }, [form.outboundFrom, form.outboundTo, form.returnFrom, form.returnTo]);
+  }, [
+    form.outboundFrom,
+    form.outboundTo,
+    form.returnFrom,
+    form.returnTo,
+    form.minStayDays,
+    form.maxStayDays,
+    form.weekendOverlap,
+  ]);
 
   const overCap = pairInfo.count > MAX_DATE_PAIRS;
   const maxCredits = pairInfo.count * (1 + MAX_RETURN_LOOKUPS_PER_PAIR);
@@ -399,6 +430,50 @@ export function SearchApp() {
               }
             />
           </Field>
+          <Field label={t("stayMin")}>
+            <input
+              type="number"
+              min={1}
+              placeholder={t("none")}
+              value={form.minStayDays ?? ""}
+              onChange={(e) =>
+                patch(
+                  "minStayDays",
+                  e.target.value === "" ? null : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+          <Field label={t("stayMax")}>
+            <input
+              type="number"
+              min={1}
+              placeholder={t("none")}
+              value={form.maxStayDays ?? ""}
+              onChange={(e) =>
+                patch(
+                  "maxStayDays",
+                  e.target.value === "" ? null : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+          <Field label={t("weekendOverlap")}>
+            <select
+              value={form.weekendOverlap}
+              onChange={(e) =>
+                patch(
+                  "weekendOverlap",
+                  isWeekendOverlap(e.target.value) ? e.target.value : "any",
+                )
+              }
+            >
+              <option value="any">{t("weekendAny")}</option>
+              <option value="none">{t("weekendNone")}</option>
+              <option value="atLeastOne">{t("weekendAtLeastOne")}</option>
+              <option value="both">{t("weekendBoth")}</option>
+            </select>
+          </Field>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -480,19 +555,23 @@ export function SearchApp() {
           </label>
 
           <div className="flex flex-wrap items-center gap-4">
-            <p className={`font-mono text-xs ${overCap || pairInfo.invalid ? "text-price" : "text-muted"}`}>
-              {pairInfo.invalid
+            <p className={`font-mono text-xs ${overCap || pairInfo.invalid || pairInfo.count === 0 ? "text-price" : "text-muted"}`}>
+              {pairInfo.invalid === "dates"
                 ? t("invertedDates")
-                : overCap
-                  ? t("overCap", { count: pairInfo.count, max: MAX_DATE_PAIRS })
-                  : t("creditEstimate", {
-                      pairs: pairInfo.count,
-                      returns: maxCredits - pairInfo.count,
-                    })}
+                : pairInfo.invalid === "stay"
+                  ? t("invertedStay")
+                  : overCap
+                    ? t("overCap", { count: pairInfo.count, max: MAX_DATE_PAIRS })
+                    : pairInfo.count === 0
+                      ? t("noStayPairs")
+                      : t("creditEstimate", {
+                          pairs: pairInfo.count,
+                          returns: maxCredits - pairInfo.count,
+                        })}
             </p>
             <button
               type="submit"
-              disabled={searching || overCap || pairInfo.invalid || pairInfo.count === 0}
+              disabled={searching || overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
               className="bg-ink px-5 py-2 font-mono text-sm text-paper"
             >
               {searching ? t("searching") : t("search")}

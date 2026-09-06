@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { PairCapError, assertPairCap, eachDate, expandDatePairs } from "./dates";
+import { PairCapError, assertPairCap, eachDate, expandDatePairs, stayDays, weekendCoverage } from "./dates";
 import { MAX_DATE_PAIRS } from "./types";
 
 describe("eachDate", () => {
@@ -40,6 +40,74 @@ describe("expandDatePairs", () => {
       "2026-09-01",
     );
     assert.equal(pairs.length, 25);
+  });
+
+  it("drops pairs outside the stay range", () => {
+    const pairs = expandDatePairs(
+      "2026-08-20",
+      "2026-08-21",
+      "2026-08-21",
+      "2026-08-27",
+      { minDays: 4, maxDays: 5 },
+    );
+    assert.deepEqual(pairs, [
+      { outboundDate: "2026-08-20", returnDate: "2026-08-24" },
+      { outboundDate: "2026-08-20", returnDate: "2026-08-25" },
+      { outboundDate: "2026-08-21", returnDate: "2026-08-25" },
+      { outboundDate: "2026-08-21", returnDate: "2026-08-26" },
+    ]);
+  });
+
+  it("keeps only weekday trips when weekend overlap is none", () => {
+    const pairs = expandDatePairs(
+      "2026-08-24",
+      "2026-08-24",
+      "2026-08-26",
+      "2026-08-29",
+      { weekendOverlap: "none" },
+    );
+    assert.deepEqual(pairs, [
+      { outboundDate: "2026-08-24", returnDate: "2026-08-26" },
+      { outboundDate: "2026-08-24", returnDate: "2026-08-27" },
+      { outboundDate: "2026-08-24", returnDate: "2026-08-28" },
+    ]);
+  });
+
+  it("requires Saturday and Sunday for both-weekend trips", () => {
+    const pairs = expandDatePairs(
+      "2026-08-21",
+      "2026-08-21",
+      "2026-08-22",
+      "2026-08-24",
+      { weekendOverlap: "both" },
+    );
+    assert.deepEqual(pairs, [
+      { outboundDate: "2026-08-21", returnDate: "2026-08-23" },
+      { outboundDate: "2026-08-21", returnDate: "2026-08-24" },
+    ]);
+  });
+});
+
+describe("weekendCoverage", () => {
+  it("counts leave Friday return Saturday as one weekend day", () => {
+    assert.deepEqual(weekendCoverage("2026-08-21", "2026-08-22"), {
+      saturday: true,
+      sunday: false,
+    });
+  });
+
+  it("counts leave Friday return Sunday as both weekend days", () => {
+    assert.deepEqual(weekendCoverage("2026-08-21", "2026-08-23"), {
+      saturday: true,
+      sunday: true,
+    });
+  });
+});
+
+describe("stayDays", () => {
+  it("counts nights away, not inclusive calendar days", () => {
+    assert.equal(stayDays("2026-08-20", "2026-08-24"), 4);
+    assert.equal(stayDays("2026-08-20", "2026-08-27"), 7);
   });
 });
 

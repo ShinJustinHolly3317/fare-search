@@ -10,6 +10,14 @@ export type TimeWindow = {
   arriveBefore: string;
 };
 
+/** 旅程要不要碰到週末：不限 / 全平日 / 至少 1 天 / 週六日都要 */
+export const WEEKEND_OVERLAPS = ["any", "none", "atLeastOne", "both"] as const;
+export type WeekendOverlap = (typeof WEEKEND_OVERLAPS)[number];
+
+export function isWeekendOverlap(value: unknown): value is WeekendOverlap {
+  return WEEKEND_OVERLAPS.includes(value as WeekendOverlap);
+}
+
 export type SearchQuery = {
   origin: string;
   destination: string;
@@ -21,6 +29,11 @@ export type SearchQuery = {
   inbound: TimeWindow;
   maxStops: number;
   maxLayoverMinutes: number | null;
+  /** 來回間隔天數下限（回程減去程）。空 = 不限 */
+  minStayDays: number | null;
+  /** 來回間隔天數上限。空 = 不限 */
+  maxStayDays: number | null;
+  weekendOverlap: WeekendOverlap;
   allowAirportChange: boolean;
 };
 
