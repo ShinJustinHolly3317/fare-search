@@ -15,6 +15,33 @@ export function formatIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** 台灣今天的 YYYY-MM-DD，不要用瀏覽器當地時區亂飄 */
+export function todayIsoTw(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date());
+}
+
+/** 月曆 6 週格子，週日開頭，含前後月的日子 */
+export function calendarCells(year: number, monthIndex: number): string[] {
+  const first = new Date(Date.UTC(year, monthIndex, 1));
+  const startPad = first.getUTCDay();
+  const prev = new Date(Date.UTC(year, monthIndex, 0));
+  const prevDays = prev.getUTCDate();
+  const cells: string[] = [];
+  for (let i = startPad - 1; i >= 0; i--) {
+    cells.push(formatIsoDate(new Date(Date.UTC(year, monthIndex - 1, prevDays - i))));
+  }
+  const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    cells.push(formatIsoDate(new Date(Date.UTC(year, monthIndex, day))));
+  }
+  while (cells.length < 42) {
+    const last = parseIsoDate(cells[cells.length - 1]);
+    last.setUTCDate(last.getUTCDate() + 1);
+    cells.push(formatIsoDate(last));
+  }
+  return cells;
+}
+
 /** 含頭含尾的日期清單 */
 export function eachDate(from: string, to: string): string[] {
   const start = parseIsoDate(from);
@@ -114,7 +141,7 @@ export class PairCapError extends Error {
 
   constructor(pairCount: number) {
     super(
-      `Date window is ${pairCount} pairs. Cap is ${MAX_DATE_PAIRS}. Shrink the ranges.`,
+      `Search is ${pairCount} jobs. Cap is ${MAX_DATE_PAIRS}. Shrink dates or pick a city, not a whole country.`,
     );
     this.name = "PairCapError";
     this.pairCount = pairCount;

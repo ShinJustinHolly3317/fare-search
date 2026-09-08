@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f3eee4;
-  --ink: #1c1814;
-  --muted: #6f675e;
-  --line: #d4cbbd;
+  --paper: #f4f2ec;
+  --ink: #161513;
+  --muted: #534d46;
+  --line: #d5cfc4;
   --price: #9f3a2a;
-  --fill: #ebe4d8;
+  --fill: #ebe6dc;
 }
 
 @theme inline {
@@ -16,9 +16,9 @@
   --color-line: var(--line);
   --color-price: var(--price);
   --color-fill: var(--fill);
-  --font-sans: var(--font-plex), var(--font-noto-tc), sans-serif;
+  --font-sans: var(--font-outfit), var(--font-noto-tc), sans-serif;
   --font-mono: var(--font-plex-mono);
-  --font-display: var(--font-fraunces);
+  --font-display: var(--font-outfit), var(--font-noto-tc), sans-serif;
 }
 
 html,
@@ -41,13 +41,15 @@ select {
   border: 1px solid var(--line);
   color: var(--ink);
   border-radius: 0;
-  padding: 0.4rem 0.55rem;
+  padding: 0.5rem 0.7rem;
   font: inherit;
+  font-size: 0.9375rem;
   width: 100%;
 }
 
 input:focus,
-select:focus {
+select:focus,
+.date-field-trigger:focus {
   outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
@@ -55,9 +57,10 @@ select:focus {
 label {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -68,11 +71,89 @@ button:disabled {
 }
 
 html[lang="zh-TW"] {
-  --font-sans: var(--font-noto-tc), var(--font-plex), sans-serif;
+  --font-sans: var(--font-noto-tc), var(--font-outfit), sans-serif;
+  --font-display: var(--font-noto-tc), var(--font-outfit), sans-serif;
 }
 
 html[lang="zh-TW"] label,
 html[lang="zh-TW"] legend {
   text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+/* 表單分組：同色系底、左邊線當 accent，圖示跟 legend 同色 */
+.field-group {
+  --group-bg: var(--fill);
+  --group-accent: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--group-accent) 22%, var(--line));
+  border-left: 3px solid var(--group-accent);
+  background: var(--group-bg);
+  padding: 0.95rem 1.05rem 1.05rem;
+}
+
+.field-group legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.4rem;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
   letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--group-accent);
+  background: var(--group-bg);
+}
+
+.field-group legend svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.field-group input[type="text"],
+.field-group input[type="date"],
+.field-group input[type="time"],
+.field-group input[type="number"],
+.field-group select,
+.field-group .date-field-trigger {
+  background: var(--paper);
+}
+
+.date-field-trigger {
+  background: var(--fill);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 0;
+  padding: 0.5rem 0.7rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-family: var(--font-mono), monospace;
+  text-align: left;
+  width: 100%;
+}
+
+.field-group[data-tone="route"] {
+  --group-bg: #e8e2d4;
+  --group-accent: #161513;
+}
+
+.field-group[data-tone="leave"] {
+  --group-bg: #f1e3b8;
+  --group-accent: #7a5214;
+}
+
+.field-group[data-tone="stay"] {
+  --group-bg: #ead3c8;
+  --group-accent: #9f3a2a;
+}
+
+.field-group[data-tone="hops"] {
+  --group-bg: #e3ded5;
+  --group-accent: #4f4a44;
+}
+
+.field-group[data-tone="out"] {
+  --group-bg: #e7dcc4;
+  --group-accent: #5f4328;
 }

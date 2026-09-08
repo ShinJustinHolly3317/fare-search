@@ -17,5 +17,6 @@ describe("i18n", () => {
     assert.equal(monthLabel("zh-TW", 8), "9月");
     assert.equal(monthLabel("en", 8), "Sep");
     assert.equal(t("zh-TW", "durationHm", { h: 2, m: 15 }), "2小時 15分");
+    assert.equal(t("zh-TW", "holidayNationalDay"), "國慶日");
   });
 });

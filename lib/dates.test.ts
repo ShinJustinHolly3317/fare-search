@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { PairCapError, assertPairCap, eachDate, expandDatePairs, stayDays, weekendCoverage } from "./dates";
+import { PairCapError, assertPairCap, calendarCells, eachDate, expandDatePairs, stayDays, weekendCoverage } from "./dates";
 import { MAX_DATE_PAIRS } from "./types";
 
 describe("eachDate", () => {
@@ -118,5 +118,15 @@ describe("assertPairCap", () => {
 
   it("refuses 26", () => {
     assert.throws(() => assertPairCap(26), PairCapError);
+  });
+});
+
+describe("calendarCells", () => {
+  it("starts Sunday and pads September 2026 with August", () => {
+    const cells = calendarCells(2026, 8);
+    assert.equal(cells.length, 42);
+    assert.equal(cells[0], "2026-08-30");
+    assert.equal(cells[2], "2026-09-01");
+    assert.equal(cells[31], "2026-09-30");
   });
 });

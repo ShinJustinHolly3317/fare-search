@@ -1,4 +1,6 @@
 export const MAX_DATE_PAIRS = 25;
+/** 國家目的地最多展開幾個大機場，避免把日本 29 個 large 全抓一遍 */
+export const MAX_DEST_AIRPORTS = 8;
 /** Playwright 共用一個 headed browser，必須串行 */
 export const SEARCH_CONCURRENCY = 1;
 /** 每個日期組合最多再點幾筆去程看回程 */
@@ -20,6 +22,7 @@ export function isWeekendOverlap(value: unknown): value is WeekendOverlap {
 
 export type SearchQuery = {
   origin: string;
+  /** IATA，或 city:Tokyo / country:Japan */
   destination: string;
   outboundFrom: string;
   outboundTo: string;
@@ -102,6 +105,7 @@ export type Dump = {
 export type PairResult = {
   outboundDate: string;
   returnDate: string;
+  destination: string;
   cached: boolean;
   creditsUsed: number;
   itineraries: Itinerary[];

@@ -10,6 +10,7 @@
     "test": "tsx --test lib/*.test.ts"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "next": "16.3.1",
     "playwright": "^1.62.1",
     "react": "19.2.8",

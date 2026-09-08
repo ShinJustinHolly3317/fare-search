@@ -10,6 +10,9 @@ import {
   type ReactNode,
 } from "react";
 import { AirportField } from "@/components/airport-field";
+import { DateField } from "@/components/date-field";
+import { GroupIcon, type GroupIconName } from "@/components/group-icon";
+import { destinationAirports } from "@/lib/airports";
 import { expandDatePairs } from "@/lib/dates";
 import { rankItineraries } from "@/lib/filter";
 import { type Locale, type MessageKey } from "@/lib/i18n";
@@ -181,6 +184,30 @@ function Field({
   );
 }
 
+function FieldGroup({
+  label,
+  tone,
+  icon,
+  cols,
+  children,
+}: {
+  label: string;
+  tone: "route" | "leave" | "stay" | "hops" | "out";
+  icon: GroupIconName;
+  cols?: string;
+  children: ReactNode;
+}) {
+  return (
+    <fieldset data-tone={tone} className="field-group">
+      <legend>
+        <GroupIcon name={icon} />
+        {label}
+      </legend>
+      <div className={cols ?? "grid grid-cols-2 gap-3"}>{children}</div>
+    </fieldset>
+  );
+}
+
 function emptySubscribe() {
   return () => {};
 }
@@ -205,6 +232,11 @@ export function SearchApp() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const dests = useMemo(
+    () => destinationAirports(form.destination, form.origin),
+    [form.destination, form.origin],
+  );
+
   const pairInfo = useMemo(() => {
     if (
       form.minStayDays != null &&
@@ -212,6 +244,9 @@ export function SearchApp() {
       form.minStayDays > form.maxStayDays
     ) {
       return { count: 0, invalid: "stay" as const };
+    }
+    if (dests.length === 0) {
+      return { count: 0, invalid: "dest" as const };
     }
     try {
       const pairs = expandDatePairs(
@@ -225,11 +260,12 @@ export function SearchApp() {
           weekendOverlap: form.weekendOverlap,
         },
       );
-      return { count: pairs.length, invalid: false as const };
+      return { count: pairs.length * dests.length, invalid: false as const };
     } catch {
       return { count: 0, invalid: "dates" as const };
     }
   }, [
+    dests,
     form.outboundFrom,
     form.outboundTo,
     form.returnFrom,
@@ -336,11 +372,15 @@ export function SearchApp() {
     <div className="mx-auto max-w-6xl px-6 py-10">
       <header className="mb-8 flex items-end justify-between gap-6 border-b border-line pb-6">
         <div>
-          <p className="font-display text-4xl italic tracking-tight">Farefit</p>
-          <p className="mt-1 text-sm text-muted">{t("tagline")}</p>
+          <h1 className="font-display text-[2.5rem] font-semibold leading-[1.1] tracking-[-0.045em]">
+            Farefit
+          </h1>
+          <p className="mt-2 max-w-xl text-[0.9375rem] leading-relaxed text-muted">
+            {t("tagline")}
+          </p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <div className="flex border border-line font-mono text-xs" role="group" aria-label={t("language")}>
+          <div className="flex border border-line font-sans text-xs font-medium" role="group" aria-label={t("language")}>
             <button
               type="button"
               className={`px-2 py-1 ${locale === "en" ? "bg-ink text-paper" : "text-muted"}`}
@@ -360,127 +400,159 @@ export function SearchApp() {
         </div>
       </header>
 
-      <form onSubmit={onSearch} className="grid gap-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <form onSubmit={onSearch} className="grid gap-4">
+        <FieldGroup
+          tone="route"
+          icon="route"
+          label={t("groupRoute")}
+          cols="grid grid-cols-1 gap-3 sm:grid-cols-2"
+        >
           <AirportField
             id="origin"
             label={t("from")}
-            placeholder={t("airportPlaceholder")}
+            placeholder={t("originPlaceholder")}
             value={form.origin}
             onChange={(iata) => patch("origin", iata)}
           />
           <AirportField
             id="destination"
+            variant="place"
             label={t("to")}
             placeholder={t("airportPlaceholder")}
             value={form.destination}
-            onChange={(iata) => patch("destination", iata)}
+            onChange={(value) => patch("destination", value)}
           />
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label={t("leaveFrom")}>
-            <input
-              type="date"
+          {dests.length > 0 ? (
+            <p className="font-mono text-xs text-muted sm:col-span-2">
+              {t("destAirports", { codes: dests.map((airport) => airport.iata).join(", ") })}
+            </p>
+          ) : null}
+        </FieldGroup>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <FieldGroup tone="leave" icon="leave" label={t("groupLeave")}>
+            <DateField
+              id="outboundFrom"
+              label={t("leaveFrom")}
               value={form.outboundFrom}
-              onChange={(e) => patch("outboundFrom", e.target.value)}
+              rangeEnd={form.outboundTo}
+              onChange={(iso) => patch("outboundFrom", iso)}
             />
-          </Field>
-          <Field label={t("leaveUntil")}>
-            <input
-              type="date"
+            <DateField
+              id="outboundTo"
+              label={t("leaveUntil")}
               value={form.outboundTo}
-              onChange={(e) => patch("outboundTo", e.target.value)}
+              rangeStart={form.outboundFrom}
+              align="end"
+              onChange={(iso) => patch("outboundTo", iso)}
             />
-          </Field>
-          <Field label={t("backFrom")}>
-            <input
-              type="date"
+          </FieldGroup>
+          <FieldGroup tone="leave" icon="back" label={t("groupBack")}>
+            <DateField
+              id="returnFrom"
+              label={t("backFrom")}
               value={form.returnFrom}
-              onChange={(e) => patch("returnFrom", e.target.value)}
+              rangeEnd={form.returnTo}
+              onChange={(iso) => patch("returnFrom", iso)}
             />
-          </Field>
-          <Field label={t("backUntil")}>
-            <input
-              type="date"
+            <DateField
+              id="returnUntil"
+              label={t("backUntil")}
               value={form.returnTo}
-              onChange={(e) => patch("returnTo", e.target.value)}
+              rangeStart={form.returnFrom}
+              align="end"
+              onChange={(iso) => patch("returnTo", iso)}
             />
-          </Field>
-          <Field label={t("maxStops")}>
-            <select
-              value={form.maxStops}
-              onChange={(e) => patch("maxStops", Number(e.target.value))}
-            >
-              <option value={0}>{t("nonstop")}</option>
-              <option value={1}>{t("oneStop")}</option>
-              <option value={2}>{t("twoStops")}</option>
-            </select>
-          </Field>
-          <Field label={t("maxLayover")}>
-            <input
-              type="number"
-              min={0}
-              placeholder={t("none")}
-              value={form.maxLayoverMinutes ?? ""}
-              onChange={(e) =>
-                patch(
-                  "maxLayoverMinutes",
-                  e.target.value === "" ? null : Number(e.target.value),
-                )
-              }
-            />
-          </Field>
-          <Field label={t("stayMin")}>
-            <input
-              type="number"
-              min={1}
-              placeholder={t("none")}
-              value={form.minStayDays ?? ""}
-              onChange={(e) =>
-                patch(
-                  "minStayDays",
-                  e.target.value === "" ? null : Number(e.target.value),
-                )
-              }
-            />
-          </Field>
-          <Field label={t("stayMax")}>
-            <input
-              type="number"
-              min={1}
-              placeholder={t("none")}
-              value={form.maxStayDays ?? ""}
-              onChange={(e) =>
-                patch(
-                  "maxStayDays",
-                  e.target.value === "" ? null : Number(e.target.value),
-                )
-              }
-            />
-          </Field>
-          <Field label={t("weekendOverlap")}>
-            <select
-              value={form.weekendOverlap}
-              onChange={(e) =>
-                patch(
-                  "weekendOverlap",
-                  isWeekendOverlap(e.target.value) ? e.target.value : "any",
-                )
-              }
-            >
-              <option value="any">{t("weekendAny")}</option>
-              <option value="none">{t("weekendNone")}</option>
-              <option value="atLeastOne">{t("weekendAtLeastOne")}</option>
-              <option value="both">{t("weekendBoth")}</option>
-            </select>
-          </Field>
+          </FieldGroup>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <fieldset className="grid grid-cols-3 gap-3 border border-line p-4">
-            <legend className={`px-1 font-mono text-xs text-muted ${locale === "zh-TW" ? "tracking-normal" : "uppercase tracking-widest"}`}>
-              {t("outbound")}
-            </legend>
+          <FieldGroup
+            tone="stay"
+            icon="stay"
+            label={t("groupStay")}
+            cols="grid grid-cols-2 gap-3 sm:grid-cols-3"
+          >
+            <Field label={t("stayMin")}>
+              <input
+                type="number"
+                min={1}
+                placeholder={t("none")}
+                value={form.minStayDays ?? ""}
+                onChange={(e) =>
+                  patch(
+                    "minStayDays",
+                    e.target.value === "" ? null : Number(e.target.value),
+                  )
+                }
+              />
+            </Field>
+            <Field label={t("stayMax")}>
+              <input
+                type="number"
+                min={1}
+                placeholder={t("none")}
+                value={form.maxStayDays ?? ""}
+                onChange={(e) =>
+                  patch(
+                    "maxStayDays",
+                    e.target.value === "" ? null : Number(e.target.value),
+                  )
+                }
+              />
+            </Field>
+            <Field label={t("weekendOverlap")}>
+              <select
+                value={form.weekendOverlap}
+                onChange={(e) =>
+                  patch(
+                    "weekendOverlap",
+                    isWeekendOverlap(e.target.value) ? e.target.value : "any",
+                  )
+                }
+              >
+                <option value="any">{t("weekendAny")}</option>
+                <option value="none">{t("weekendNone")}</option>
+                <option value="atLeastOne">{t("weekendAtLeastOne")}</option>
+                <option value="both">{t("weekendBoth")}</option>
+              </select>
+            </Field>
+          </FieldGroup>
+          <FieldGroup tone="hops" icon="hops" label={t("groupHops")}>
+            <Field label={t("maxStops")}>
+              <select
+                value={form.maxStops}
+                onChange={(e) => patch("maxStops", Number(e.target.value))}
+              >
+                <option value={0}>{t("nonstop")}</option>
+                <option value={1}>{t("oneStop")}</option>
+                <option value={2}>{t("twoStops")}</option>
+              </select>
+            </Field>
+            <Field label={t("maxLayover")}>
+              <input
+                type="number"
+                min={0}
+                placeholder={t("none")}
+                value={form.maxLayoverMinutes ?? ""}
+                onChange={(e) =>
+                  patch(
+                    "maxLayoverMinutes",
+                    e.target.value === "" ? null : Number(e.target.value),
+                  )
+                }
+              />
+            </Field>
+          </FieldGroup>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <FieldGroup
+            tone="out"
+            icon="out"
+            label={t("outbound")}
+            cols="grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
             <Field label={t("departAfter")}>
               <input
                 type="time"
@@ -508,11 +580,13 @@ export function SearchApp() {
                 }
               />
             </Field>
-          </fieldset>
-          <fieldset className="grid grid-cols-3 gap-3 border border-line p-4">
-            <legend className={`px-1 font-mono text-xs text-muted ${locale === "zh-TW" ? "tracking-normal" : "uppercase tracking-widest"}`}>
-              {t("inbound")}
-            </legend>
+          </FieldGroup>
+          <FieldGroup
+            tone="out"
+            icon="in"
+            label={t("inbound")}
+            cols="grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
             <Field label={t("departAfter")}>
               <input
                 type="time"
@@ -540,7 +614,7 @@ export function SearchApp() {
                 }
               />
             </Field>
-          </fieldset>
+          </FieldGroup>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -560,7 +634,9 @@ export function SearchApp() {
                 ? t("invertedDates")
                 : pairInfo.invalid === "stay"
                   ? t("invertedStay")
-                  : overCap
+                  : pairInfo.invalid === "dest"
+                    ? t("unknownDest")
+                    : overCap
                     ? t("overCap", { count: pairInfo.count, max: MAX_DATE_PAIRS })
                     : pairInfo.count === 0
                       ? t("noStayPairs")
@@ -572,7 +648,7 @@ export function SearchApp() {
             <button
               type="submit"
               disabled={searching || overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
-              className="bg-ink px-5 py-2 font-mono text-sm text-paper"
+              className="bg-ink px-6 py-2.5 font-sans text-sm font-medium text-paper transition-transform active:scale-[0.98] disabled:active:scale-100"
             >
               {searching ? t("searching") : t("search")}
             </button>
@@ -677,7 +753,7 @@ function FragmentRow({
           {formatPrice(itinerary.price, itinerary.currency)}
         </td>
         <td className="py-3 pr-3 font-mono">
-          {shortDate(itinerary.outboundDate, locale, month)} – {shortDate(itinerary.returnDate, locale, month)}
+          {shortDate(itinerary.outboundDate, locale, month)} - {shortDate(itinerary.returnDate, locale, month)}
         </td>
         <td className="py-3 pr-3 font-mono">
           {clock(itinerary.outbound.departAt)} → {clock(itinerary.outbound.arriveAt)}

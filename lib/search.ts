@@ -1,3 +1,4 @@
+import { destinationAirports } from "./airports";
 import { cacheGet, cacheSet, outboundCacheKey, returnCacheKey } from "./cache";
 import { PairCapError, assertPairCap, expandDatePairs } from "./dates";
 import {
@@ -31,12 +32,16 @@ export function validateQuery(body: unknown): SearchQuery {
   }
   const raw = body as Record<string, unknown>;
   const origin = String(raw.origin ?? "").trim().toUpperCase();
-  const destination = String(raw.destination ?? "").trim().toUpperCase();
-  if (!IATA.test(origin) || !IATA.test(destination)) {
-    throw new Error("Origin and destination must be 3-letter IATA codes");
+  const destination = String(raw.destination ?? "").trim();
+  if (!IATA.test(origin)) {
+    throw new Error("Origin must be a 3-letter IATA code");
   }
-  if (origin === destination) {
-    throw new Error("Origin and destination must differ");
+  if (!destination) {
+    throw new Error("Destination is required");
+  }
+  const dests = destinationAirports(destination, origin);
+  if (dests.length === 0) {
+    throw new Error("Unknown destination, or it is the same as origin");
   }
 
   const maxStops = Number(raw.maxStops);
@@ -186,6 +191,7 @@ async function searchPair(
   if (outboundSearch.page.error && outboundSearch.page.options.length === 0) {
     return {
       ...pair,
+      destination: query.destination,
       cached: outboundSearch.cached,
       creditsUsed,
       itineraries: [],
@@ -277,6 +283,7 @@ async function searchPair(
 
   return {
     ...pair,
+    destination: query.destination,
     cached,
     creditsUsed,
     itineraries: rankItineraries(itineraries),
@@ -320,7 +327,27 @@ export async function* runSearch(
     return;
   }
 
-  yield { type: "start", pairCount: pairs.length, maxPairs: MAX_DATE_PAIRS };
+  const dests = destinationAirports(query.destination, query.origin);
+  if (dests.length === 0) {
+    yield { type: "error", message: "Unknown destination, or it is the same as origin" };
+    return;
+  }
+
+  const jobs = pairs.flatMap((pair) =>
+    dests.map((dest) => ({ pair, destIata: dest.iata })),
+  );
+  try {
+    assertPairCap(jobs.length);
+  } catch (error) {
+    const message =
+      error instanceof PairCapError || error instanceof Error
+        ? error.message
+        : "Too many searches";
+    yield { type: "error", message };
+    return;
+  }
+
+  yield { type: "start", pairCount: jobs.length, maxPairs: MAX_DATE_PAIRS };
 
   const queue = createPairQueue();
   let finished = 0;
@@ -329,10 +356,13 @@ export async function* runSearch(
   let kept = 0;
   const dumped: Dump[] = [];
 
-  const running = poolEach(pairs, SEARCH_CONCURRENCY, async (pair) => {
+  const running = poolEach(jobs, SEARCH_CONCURRENCY, async (job) => {
+    const { pair, destIata } = job;
+    const pairQuery = { ...query, destination: destIata };
     if (signal?.aborted) {
       queue.push({
         ...pair,
+        destination: destIata,
         cached: false,
         creditsUsed: 0,
         itineraries: [],
@@ -342,11 +372,12 @@ export async function* runSearch(
       return;
     }
     try {
-      queue.push(await searchPair(query, pair, signal));
+      queue.push(await searchPair(pairQuery, pair, signal));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Search failed";
       queue.push({
         ...pair,
+        destination: destIata,
         cached: false,
         creditsUsed: 0,
         itineraries: [],
@@ -356,7 +387,7 @@ export async function* runSearch(
     }
   });
 
-  while (finished < pairs.length) {
+  while (finished < jobs.length) {
     const result = await queue.next();
     finished += 1;
     creditsUsed += result.creditsUsed;

@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useI18n } from "@/lib/use-i18n";
 import {
   findAirport,
   formatAirport,
+  formatPlace,
+  parsePlaceId,
   searchAirports,
+  searchPlaces,
   type Airport,
+  type PlaceHit,
 } from "@/lib/airports";
 
 type Props = {
@@ -13,10 +18,20 @@ type Props = {
   label: string;
   placeholder: string;
   value: string;
-  onChange: (iata: string) => void;
+  onChange: (value: string) => void;
+  /** place：城市／國家會展開成多機場 */
+  variant?: "airport" | "place";
 };
 
-export function AirportField({ id, label, placeholder, value, onChange }: Props) {
+export function AirportField({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  variant = "airport",
+}: Props) {
+  const { t } = useI18n();
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -24,9 +39,20 @@ export function AirportField({ id, label, placeholder, value, onChange }: Props)
   const [query, setQuery] = useState(value);
   const [highlight, setHighlight] = useState(0);
 
-  const selected = findAirport(value);
-  const results = open ? searchAirports(query, 12) : [];
-  const display = open ? query : selected ? formatAirport(selected) : value;
+  const places = variant === "place" && open ? searchPlaces(query, 12) : [];
+  const airports = variant === "airport" && open ? searchAirports(query, 12) : [];
+  const resultCount = variant === "place" ? places.length : airports.length;
+
+  const selectedAirport = variant === "airport" ? findAirport(value) : undefined;
+  const display = open
+    ? query
+    : variant === "place"
+      ? value
+        ? formatPlace(value)
+        : ""
+      : selectedAirport
+        ? formatAirport(selectedAirport)
+        : value;
 
   useEffect(() => {
     function onDoc(event: MouseEvent) {
@@ -38,13 +64,25 @@ export function AirportField({ id, label, placeholder, value, onChange }: Props)
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  function pick(airport: Airport) {
+  function pickAirport(airport: Airport) {
     onChange(airport.iata);
     setQuery(airport.iata);
     setOpen(false);
   }
 
+  function pickPlace(place: PlaceHit) {
+    onChange(place.id);
+    setQuery(place.id);
+    setOpen(false);
+  }
+
   function commitTyped() {
+    if (variant === "place") {
+      const hit = searchPlaces(query, 1)[0];
+      if (hit) onChange(hit.id);
+      setOpen(false);
+      return;
+    }
     const exact = findAirport(query);
     if (exact) onChange(exact.iata);
     setOpen(false);
@@ -63,14 +101,14 @@ export function AirportField({ id, label, placeholder, value, onChange }: Props)
         aria-expanded={open}
         aria-controls={listId}
         aria-autocomplete="list"
-        aria-activedescendant={
-          open && results[highlight] ? `${listId}-${results[highlight].iata}` : undefined
-        }
         placeholder={placeholder}
         className="normal-case tracking-normal"
         value={display}
         onFocus={() => {
-          setQuery(value);
+          const parsed = parsePlaceId(value);
+          setQuery(
+            parsed?.kind === "city" || parsed?.kind === "country" ? parsed.name : value,
+          );
           setOpen(true);
           setHighlight(0);
           requestAnimationFrame(() => inputRef.current?.select());
@@ -86,27 +124,62 @@ export function AirportField({ id, label, placeholder, value, onChange }: Props)
             event.preventDefault();
             setOpen(true);
             setHighlight((current) =>
-              Math.min(current + 1, Math.max(results.length - 1, 0)),
+              Math.min(current + 1, Math.max(resultCount - 1, 0)),
             );
           } else if (event.key === "ArrowUp") {
             event.preventDefault();
             setHighlight((current) => Math.max(current - 1, 0));
-          } else if (event.key === "Enter" && open && results[highlight]) {
+          } else if (event.key === "Enter" && open) {
             event.preventDefault();
-            pick(results[highlight]);
+            if (variant === "place" && places[highlight]) pickPlace(places[highlight]);
+            else if (airports[highlight]) pickAirport(airports[highlight]);
           } else if (event.key === "Escape") {
             event.preventDefault();
             setOpen(false);
           }
         }}
       />
-      {open && results.length > 0 ? (
+      {open && variant === "place" && places.length > 0 ? (
         <ul
           id={listId}
           role="listbox"
           className="absolute top-[calc(100%+2px)] z-20 max-h-72 w-full overflow-auto border border-line bg-paper normal-case tracking-normal"
         >
-          {results.map((airport, index) => (
+          {places.map((place, index) => (
+            <li
+              id={`${listId}-${place.id}`}
+              key={place.id}
+              role="option"
+              aria-selected={index === highlight}
+              className={`cursor-pointer px-3 py-2 ${index === highlight ? "bg-fill" : ""}`}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                pickPlace(place);
+              }}
+              onMouseEnter={() => setHighlight(index)}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="font-mono text-sm">{place.title}</span>
+                <span className="truncate text-[10px] text-muted">
+                  {place.kind === "city"
+                    ? t("placeCity")
+                    : place.kind === "country"
+                      ? t("placeCountry")
+                      : t("placeAirport")}
+                </span>
+              </div>
+              <div className="truncate text-xs text-muted">{place.subtitle}</div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {open && variant === "airport" && airports.length > 0 ? (
+        <ul
+          id={listId}
+          role="listbox"
+          className="absolute top-[calc(100%+2px)] z-20 max-h-72 w-full overflow-auto border border-line bg-paper normal-case tracking-normal"
+        >
+          {airports.map((airport, index) => (
             <li
               id={`${listId}-${airport.iata}`}
               key={airport.iata}
@@ -115,7 +188,7 @@ export function AirportField({ id, label, placeholder, value, onChange }: Props)
               className={`cursor-pointer px-3 py-2 ${index === highlight ? "bg-fill" : ""}`}
               onMouseDown={(event) => {
                 event.preventDefault();
-                pick(airport);
+                pickAirport(airport);
               }}
               onMouseEnter={() => setHighlight(index)}
             >

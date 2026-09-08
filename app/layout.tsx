@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Fraunces, IBM_Plex_Mono, IBM_Plex_Sans, Noto_Sans_TC } from "next/font/google";
+import { IBM_Plex_Mono, Noto_Sans_TC, Outfit } from "next/font/google";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
-  style: ["normal", "italic"],
-});
-
-const plex = IBM_Plex_Sans({
-  variable: "--font-plex",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -29,14 +23,14 @@ const notoTc = Noto_Sans_TC({
 
 export const metadata: Metadata = {
   title: "Farefit PW",
-  description: "Cheapest flights that actually fit your times — Playwright",
+  description: "Cheapest flights that actually fit your times. Playwright.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${plex.variable} ${plexMono.variable} ${notoTc.variable} h-full`}
+      className={`${outfit.variable} ${plexMono.variable} ${notoTc.variable} h-full`}
     >
       <body className="min-h-full bg-paper font-sans text-ink antialiased">
         {children}

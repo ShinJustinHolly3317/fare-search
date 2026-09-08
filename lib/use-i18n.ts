@@ -5,6 +5,7 @@ import {
   getLocale,
   hydrateLocale,
   monthLabel,
+  weekdayLabel,
   setLocale,
   subscribeLocale,
   t,
@@ -24,5 +25,6 @@ export function useI18n() {
     setLocale,
     t: (key: MessageKey, vars?: Record<string, string | number>) => t(locale, key, vars),
     month: (monthIndex: number) => monthLabel(locale, monthIndex),
+    weekday: (weekday: number) => weekdayLabel(locale, weekday),
   };
 }
