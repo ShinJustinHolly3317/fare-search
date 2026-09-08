@@ -1,27 +1,29 @@
 # Farefit PW
 
-用 Playwright 開 Google Flights、依你的時間條件篩最便宜來回。本機只要有 Docker，不必裝 Node.js 或 Chromium。
+A local flight sieve. Playwright opens Google Flights, then ranks the cheapest round-trip economy itineraries that actually fit your date windows and times.
 
-## 用 Docker 跑（建議）
+Docker is enough. You do not need Node or Chromium on the host.
+
+## Run with Docker
 
 ```bash
 docker compose up --build
-# 舊版 Docker 用：docker-compose up --build
+# older Docker: docker-compose up --build
 ```
 
-瀏覽器打開 http://localhost:3000
+Open http://localhost:3000
 
-第一次搜尋會比較慢（容器裡的 Chromium 要冷啟動）。快取與 cookie profile 存在 Docker volume，之後重跑不用重抓。
+The first search is slow because Chromium inside the container is cold. Scrape cache and the cookie profile live on Docker volumes, so repeats are cheap.
 
-停掉：
+Stop:
 
 ```bash
 docker compose down
 ```
 
-## 本機開發
+## Local development
 
-需要 Node 22+ 與 Playwright Chromium。
+Needs Node 22+ and Playwright Chromium.
 
 ```bash
 npm install
@@ -29,4 +31,16 @@ npx playwright install chromium
 npm run dev
 ```
 
-`.env.local` 可設 `PLAYWRIGHT_HEADLESS=1` 關掉視窗。Docker 預設走 Xvfb 虛擬螢幕（看起來像 headed，但不需要顯示器）。
+Set `PLAYWRIGHT_HEADLESS=1` in `.env.local` to hide the browser window. Docker uses Xvfb, so it still looks headed without a real display.
+
+```bash
+npm test
+```
+
+## What it searches
+
+- Round-trip, economy only
+- Origin is one IATA. Destination can be an airport, a city (`Tokyo` → HND + NRT), or a country (capped at 8 large airports)
+- Date windows × destination airports = search jobs, capped at 25
+- Date picker marks Taiwan national holidays and makeup days (DGPA 2026–2027)
+- UI is English / 繁中
