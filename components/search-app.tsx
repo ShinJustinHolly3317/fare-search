@@ -12,6 +12,7 @@ import {
 import { AirportField } from "@/components/airport-field";
 import { DateField } from "@/components/date-field";
 import { GroupIcon, type GroupIconName } from "@/components/group-icon";
+import { estimateCheckedBagFee, formatAirlineList } from "@/lib/airlines";
 import { destinationAirports } from "@/lib/airports";
 import { expandDatePairs } from "@/lib/dates";
 import { rankItineraries } from "@/lib/filter";
@@ -723,6 +724,9 @@ export function SearchApp() {
             </table>
           </div>
         ) : null}
+        {itineraries.some((itinerary) => estimateCheckedBagFee(itinerary).extraTwd > 0) ? (
+          <p className="mt-3 max-w-2xl text-xs text-muted">{t("bagNote")}</p>
+        ) : null}
       </section>
     </div>
   );
@@ -745,12 +749,21 @@ function FragmentRow({
   month: (index: number) => string;
   onToggle: () => void;
 }) {
-  const airlines = [...new Set([...itinerary.outbound.airlines, ...itinerary.inbound.airlines])].join(" · ");
+  const airlines = formatAirlineList(
+    [...itinerary.outbound.airlines, ...itinerary.inbound.airlines],
+    locale,
+  );
+  const bag = estimateCheckedBagFee(itinerary);
   return (
     <>
       <tr className="border-b border-line/80 align-top hover:bg-fill/60">
         <td className="py-3 pr-3 font-mono text-base font-medium text-price">
           {formatPrice(itinerary.price, itinerary.currency)}
+          {bag.extraTwd > 0 ? (
+            <div className="mt-0.5 text-[11px] font-normal text-muted">
+              {t("bagEst", { amount: formatPrice(bag.extraTwd, itinerary.currency) })}
+            </div>
+          ) : null}
         </td>
         <td className="py-3 pr-3 font-mono">
           {shortDate(itinerary.outboundDate, locale, month)} - {shortDate(itinerary.returnDate, locale, month)}
