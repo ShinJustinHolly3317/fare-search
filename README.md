@@ -2,6 +2,8 @@
 
 A local flight sieve. Playwright opens Google Flights, then ranks the cheapest round-trip economy itineraries that actually fit your date windows and times.
 
+![Farefit homepage](docs/home.png)
+
 Docker is enough. You do not need Node or Chromium on the host.
 
 ## Run with Docker
