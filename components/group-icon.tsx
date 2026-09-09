@@ -24,5 +24,5 @@ const ICONS: Record<GroupIconName, Icon> = {
 /** Phosphor 圖示，跟 legend 同色 */
 export function GroupIcon({ name }: { name: GroupIconName }) {
   const Glyph = ICONS[name];
-  return <Glyph size={16} weight="regular" aria-hidden />;
+  return <Glyph size={16} weight="fill" aria-hidden />;
 }

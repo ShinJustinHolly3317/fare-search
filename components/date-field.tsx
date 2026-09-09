@@ -79,18 +79,22 @@ export function DateField({
     const parts = yearMonth(value);
     if (!parts) return value;
     const day = Number(value.slice(8));
+    const monthNum = String(parts.month + 1).padStart(2, "0");
+    const dayNum = String(day).padStart(2, "0");
+    /* 觸發鈕要單行，繁中完整年號會把格子撐高 */
     return locale === "zh-TW"
-      ? `${parts.year}年${month(parts.month)}${day}日`
+      ? `${parts.year}/${monthNum}/${dayNum}`
       : `${day} ${month(parts.month)} ${parts.year}`;
   })();
 
   return (
-    <div ref={rootRef} className="relative flex flex-col">
+    <div ref={rootRef} className="relative flex min-w-0 flex-col gap-2">
       <label htmlFor={id}>{label}</label>
       <button
         id={id}
         type="button"
         className="date-field-trigger"
+        title={value}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={dialogId}
@@ -102,7 +106,7 @@ export function DateField({
         <div
           id={dialogId}
           role="dialog"
-          className={`absolute top-[calc(100%+2px)] z-30 w-[17.75rem] border border-line bg-paper p-3 ${
+          className={`date-popover absolute top-[calc(100%+4px)] z-50 w-[17.75rem] border border-line bg-fill p-3 ${
             align === "end" ? "right-0" : "left-0"
           }`}
         >
@@ -158,8 +162,8 @@ export function DateField({
                   aria-pressed={selectedDay}
                   className={[
                     "relative flex h-9 flex-col items-center justify-center border-0 p-0 text-sm",
-                    selectedDay ? "bg-ink text-paper" : ranged ? "bg-fill" : "bg-transparent",
-                    todayDay && !selectedDay ? "outline outline-1 outline-ink -outline-offset-1" : "",
+                    selectedDay ? "bg-navy text-navy-ink" : ranged ? "bg-sage/50" : "bg-transparent",
+                    todayDay && !selectedDay ? "outline outline-1 outline-navy -outline-offset-1" : "",
                     outside && !selectedDay ? "text-muted/45" : "",
                     !selectedDay && !outside && (holiday || weekend) ? "text-price" : "",
                     !selectedDay && !outside && !holiday && !weekend ? "text-ink" : "",

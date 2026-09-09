@@ -89,7 +89,7 @@ export function AirportField({
   }
 
   return (
-    <div ref={rootRef} className="relative flex flex-col">
+    <div ref={rootRef} className="relative flex min-w-0 flex-col gap-2">
       <label htmlFor={id}>{label}</label>
       <input
         ref={inputRef}
@@ -143,7 +143,7 @@ export function AirportField({
         <ul
           id={listId}
           role="listbox"
-          className="absolute top-[calc(100%+2px)] z-20 max-h-72 w-full overflow-auto border border-line bg-paper normal-case tracking-normal"
+          className="suggest-list absolute top-[calc(100%+4px)] z-50 max-h-72 w-full overflow-auto border border-line bg-fill normal-case tracking-normal"
         >
           {places.map((place, index) => (
             <li
@@ -151,7 +151,7 @@ export function AirportField({
               key={place.id}
               role="option"
               aria-selected={index === highlight}
-              className={`cursor-pointer px-3 py-2 ${index === highlight ? "bg-fill" : ""}`}
+              className={`cursor-pointer px-3 py-2 ${index === highlight ? "bg-paper" : ""}`}
               onMouseDown={(event) => {
                 event.preventDefault();
                 pickPlace(place);
@@ -177,7 +177,7 @@ export function AirportField({
         <ul
           id={listId}
           role="listbox"
-          className="absolute top-[calc(100%+2px)] z-20 max-h-72 w-full overflow-auto border border-line bg-paper normal-case tracking-normal"
+          className="suggest-list absolute top-[calc(100%+4px)] z-50 max-h-72 w-full overflow-auto border border-line bg-fill normal-case tracking-normal"
         >
           {airports.map((airport, index) => (
             <li
@@ -185,7 +185,7 @@ export function AirportField({
               key={airport.iata}
               role="option"
               aria-selected={index === highlight}
-              className={`cursor-pointer px-3 py-2 ${index === highlight ? "bg-fill" : ""}`}
+              className={`cursor-pointer px-3 py-2 ${index === highlight ? "bg-paper" : ""}`}
               onMouseDown={(event) => {
                 event.preventDefault();
                 pickAirport(airport);

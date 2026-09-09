@@ -12,6 +12,7 @@ import {
 import { AirportField } from "@/components/airport-field";
 import { DateField } from "@/components/date-field";
 import { GroupIcon, type GroupIconName } from "@/components/group-icon";
+import { SearchPlane } from "@/components/search-plane";
 import { estimateCheckedBagFee, formatAirlineList } from "@/lib/airlines";
 import { destinationAirports } from "@/lib/airports";
 import { expandDatePairs } from "@/lib/dates";
@@ -187,19 +188,17 @@ function Field({
 
 function FieldGroup({
   label,
-  tone,
   icon,
   cols,
   children,
 }: {
   label: string;
-  tone: "route" | "leave" | "stay" | "hops" | "out";
   icon: GroupIconName;
   cols?: string;
   children: ReactNode;
 }) {
   return (
-    <fieldset data-tone={tone} className="field-group">
+    <fieldset className="filter-block">
       <legend>
         <GroupIcon name={icon} />
         {label}
@@ -370,68 +369,57 @@ export function SearchApp() {
     .join(", ");
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <header className="mb-8 flex items-end justify-between gap-6 border-b border-line pb-6">
-        <div>
-          <h1 className="font-display text-[2.5rem] font-semibold leading-[1.1] tracking-[-0.045em]">
-            Farefit
-          </h1>
-          <p className="mt-2 max-w-xl text-[0.9375rem] leading-relaxed text-muted">
-            {t("tagline")}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex border border-line font-sans text-xs font-medium" role="group" aria-label={t("language")}>
-            <button
-              type="button"
-              className={`px-2 py-1 ${locale === "en" ? "bg-ink text-paper" : "text-muted"}`}
-              onClick={() => setLocale("en")}
-            >
-              {t("langEn")}
-            </button>
-            <button
-              type="button"
-              className={`px-2 py-1 ${locale === "zh-TW" ? "bg-ink text-paper" : "text-muted"}`}
-              onClick={() => setLocale("zh-TW")}
-            >
-              {t("langZh")}
-            </button>
+    <form onSubmit={onSearch} className="min-h-full">
+      <header className="site-header sticky top-0 z-40 text-ink">
+        <div className="mx-auto max-w-[1180px] px-4 py-6 sm:px-6 sm:py-7">
+          <div className="mb-6 flex items-center justify-between gap-3">
+            <div>
+              <h1 className="font-display text-[1.65rem] font-semibold leading-none tracking-[-0.04em]">
+                Farefit
+              </h1>
+              <p className="mt-1 hidden max-w-xl text-xs text-ink/70 sm:block">{t("tagline")}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <p className="hidden font-mono text-[10px] text-ink/50 md:block">{t("stack")}</p>
+              <div
+                className="flex overflow-hidden rounded-[var(--radius)] border border-navy/30 font-sans text-xs font-medium"
+                role="group"
+                aria-label={t("language")}
+              >
+                <button
+                  type="button"
+                  className={`px-2.5 py-1 ${locale === "en" ? "bg-navy text-paper" : "text-ink/75"}`}
+                  onClick={() => setLocale("en")}
+                >
+                  {t("langEn")}
+                </button>
+                <button
+                  type="button"
+                  className={`px-2.5 py-1 ${locale === "zh-TW" ? "bg-navy text-paper" : "text-ink/75"}`}
+                  onClick={() => setLocale("zh-TW")}
+                >
+                  {t("langZh")}
+                </button>
+              </div>
+            </div>
           </div>
-          <p className="font-mono text-xs text-muted">{t("stack")}</p>
-        </div>
-      </header>
 
-      <form onSubmit={onSearch} className="grid gap-4">
-        <FieldGroup
-          tone="route"
-          icon="route"
-          label={t("groupRoute")}
-          cols="grid grid-cols-1 gap-3 sm:grid-cols-2"
-        >
-          <AirportField
-            id="origin"
-            label={t("from")}
-            placeholder={t("originPlaceholder")}
-            value={form.origin}
-            onChange={(iata) => patch("origin", iata)}
-          />
-          <AirportField
-            id="destination"
-            variant="place"
-            label={t("to")}
-            placeholder={t("airportPlaceholder")}
-            value={form.destination}
-            onChange={(value) => patch("destination", value)}
-          />
-          {dests.length > 0 ? (
-            <p className="font-mono text-xs text-muted sm:col-span-2">
-              {t("destAirports", { codes: dests.map((airport) => airport.iata).join(", ") })}
-            </p>
-          ) : null}
-        </FieldGroup>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <FieldGroup tone="leave" icon="leave" label={t("groupLeave")}>
+          <div className="grid grid-cols-2 items-end gap-3 md:grid-cols-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_repeat(4,minmax(0,1fr))_8.75rem]">
+            <AirportField
+              id="origin"
+              label={t("from")}
+              placeholder={t("originPlaceholder")}
+              value={form.origin}
+              onChange={(iata) => patch("origin", iata)}
+            />
+            <AirportField
+              id="destination"
+              variant="place"
+              label={t("to")}
+              placeholder={t("airportPlaceholder")}
+              value={form.destination}
+              onChange={(value) => patch("destination", value)}
+            />
             <DateField
               id="outboundFrom"
               label={t("leaveFrom")}
@@ -447,8 +435,6 @@ export function SearchApp() {
               align="end"
               onChange={(iso) => patch("outboundTo", iso)}
             />
-          </FieldGroup>
-          <FieldGroup tone="leave" icon="back" label={t("groupBack")}>
             <DateField
               id="returnFrom"
               label={t("backFrom")}
@@ -464,15 +450,51 @@ export function SearchApp() {
               align="end"
               onChange={(iso) => patch("returnTo", iso)}
             />
-          </FieldGroup>
-        </div>
+            <div className="col-span-2 flex items-end md:col-span-1">
+              <button
+                type="submit"
+                disabled={searching || overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
+                className="search-submit w-full disabled:active:scale-100"
+              >
+                {searching ? t("searching") : t("search")}
+              </button>
+            </div>
+          </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-2 text-xs">
+            {dests.length > 0 ? (
+              <p className="font-mono text-ink/60">
+                {t("destAirports", { codes: dests.map((airport) => airport.iata).join(", ") })}
+              </p>
+            ) : (
+              <span />
+            )}
+            <p className={`font-mono ${overCap || pairInfo.invalid || pairInfo.count === 0 ? "text-price" : "text-ink/60"}`}>
+              {pairInfo.invalid === "dates"
+                ? t("invertedDates")
+                : pairInfo.invalid === "stay"
+                  ? t("invertedStay")
+                  : pairInfo.invalid === "dest"
+                    ? t("unknownDest")
+                    : overCap
+                      ? t("overCap", { count: pairInfo.count, max: MAX_DATE_PAIRS })
+                      : pairInfo.count === 0
+                        ? t("noStayPairs")
+                        : t("creditEstimate", {
+                            pairs: pairInfo.count,
+                            returns: maxCredits - pairInfo.count,
+                          })}
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-[1180px] px-4 py-5 sm:px-6 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start lg:gap-5">
+        <aside className="filter-rail mb-5 lg:mb-0">
           <FieldGroup
-            tone="stay"
             icon="stay"
             label={t("groupStay")}
-            cols="grid grid-cols-2 gap-3 sm:grid-cols-3"
+            cols="grid grid-cols-2 gap-3"
           >
             <Field label={t("stayMin")}>
               <input
@@ -502,24 +524,26 @@ export function SearchApp() {
                 }
               />
             </Field>
-            <Field label={t("weekendOverlap")}>
-              <select
-                value={form.weekendOverlap}
-                onChange={(e) =>
-                  patch(
-                    "weekendOverlap",
-                    isWeekendOverlap(e.target.value) ? e.target.value : "any",
-                  )
-                }
-              >
-                <option value="any">{t("weekendAny")}</option>
-                <option value="none">{t("weekendNone")}</option>
-                <option value="atLeastOne">{t("weekendAtLeastOne")}</option>
-                <option value="both">{t("weekendBoth")}</option>
-              </select>
-            </Field>
+            <div className="col-span-2">
+              <Field label={t("weekendOverlap")}>
+                <select
+                  value={form.weekendOverlap}
+                  onChange={(e) =>
+                    patch(
+                      "weekendOverlap",
+                      isWeekendOverlap(e.target.value) ? e.target.value : "any",
+                    )
+                  }
+                >
+                  <option value="any">{t("weekendAny")}</option>
+                  <option value="none">{t("weekendNone")}</option>
+                  <option value="atLeastOne">{t("weekendAtLeastOne")}</option>
+                  <option value="both">{t("weekendBoth")}</option>
+                </select>
+              </Field>
+            </div>
           </FieldGroup>
-          <FieldGroup tone="hops" icon="hops" label={t("groupHops")}>
+          <FieldGroup icon="hops" label={t("groupHops")}>
             <Field label={t("maxStops")}>
               <select
                 value={form.maxStops}
@@ -545,14 +569,10 @@ export function SearchApp() {
               />
             </Field>
           </FieldGroup>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
           <FieldGroup
-            tone="out"
             icon="out"
             label={t("outbound")}
-            cols="grid grid-cols-1 gap-3 sm:grid-cols-3"
+            cols="grid grid-cols-1 gap-3"
           >
             <Field label={t("departAfter")}>
               <input
@@ -583,10 +603,9 @@ export function SearchApp() {
             </Field>
           </FieldGroup>
           <FieldGroup
-            tone="out"
             icon="in"
             label={t("inbound")}
-            cols="grid grid-cols-1 gap-3 sm:grid-cols-3"
+            cols="grid grid-cols-1 gap-3"
           >
             <Field label={t("departAfter")}>
               <input
@@ -616,51 +635,21 @@ export function SearchApp() {
               />
             </Field>
           </FieldGroup>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <label className="!flex-row !items-center !normal-case tracking-normal">
+          <label className="mt-4 !flex-row !items-center !normal-case tracking-normal text-sm text-ink">
             <input
               type="checkbox"
-              className="mr-2"
+              className="mr-2 accent-price"
               checked={!form.allowAirportChange}
               onChange={(e) => patch("allowAirportChange", !e.target.checked)}
             />
             {t("noAirportChange")}
           </label>
+        </aside>
 
-          <div className="flex flex-wrap items-center gap-4">
-            <p className={`font-mono text-xs ${overCap || pairInfo.invalid || pairInfo.count === 0 ? "text-price" : "text-muted"}`}>
-              {pairInfo.invalid === "dates"
-                ? t("invertedDates")
-                : pairInfo.invalid === "stay"
-                  ? t("invertedStay")
-                  : pairInfo.invalid === "dest"
-                    ? t("unknownDest")
-                    : overCap
-                    ? t("overCap", { count: pairInfo.count, max: MAX_DATE_PAIRS })
-                    : pairInfo.count === 0
-                      ? t("noStayPairs")
-                      : t("creditEstimate", {
-                          pairs: pairInfo.count,
-                          returns: maxCredits - pairInfo.count,
-                        })}
-            </p>
-            <button
-              type="submit"
-              disabled={searching || overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
-              className="bg-ink px-6 py-2.5 font-sans text-sm font-medium text-paper transition-transform active:scale-[0.98] disabled:active:scale-100"
-            >
-              {searching ? t("searching") : t("search")}
-            </button>
-          </div>
-        </div>
-      </form>
-
-      <section className="mt-10">
+        <section>
         {(searching || itineraries.length > 0 || dumped > 0 || error) && (
-          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3 border-b border-line pb-3">
-            <p className="font-mono text-sm">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+            <p className="text-sm">
               {searching
                 ? t("datePairs", { done: progress.done, total: progress.total })
                 : t("fitTimes", { count: itineraries.length })}
@@ -668,14 +657,15 @@ export function SearchApp() {
               {creditsUsed > 0 ? t("livePages", { count: creditsUsed }) : ""}
               {cachedHits > 0 ? t("cachedPairs", { count: cachedHits }) : ""}
             </p>
-            {reasonText ? <p className="max-w-xl text-right text-xs text-muted">{reasonText}</p> : null}
+            <p className="text-xs text-muted">{t("rankedByTicket")}</p>
           </div>
         )}
+        {reasonText ? <p className="mb-3 text-xs text-muted">{reasonText}</p> : null}
 
         {error ? <p className="text-sm text-price">{error}</p> : null}
 
         {!searching && !error && itineraries.length === 0 && dumped > 0 ? (
-          <p className="text-sm text-muted">
+          <p className="rounded-[var(--radius)] border border-line bg-fill p-4 text-sm text-muted">
             {t("emptyDumped", {
               count: dumped,
               reasons: reasonText ? ` (${reasonText})` : "",
@@ -683,59 +673,91 @@ export function SearchApp() {
           </p>
         ) : null}
 
+        {searching && itineraries.length === 0 ? (
+          <div className="flex flex-col items-center py-16">
+            <SearchPlane flying />
+            <p className="mt-3 text-sm text-muted">{t("searching")}</p>
+          </div>
+        ) : null}
+
+        {!searching && itineraries.length === 0 && dumped === 0 && !error ? (
+          <div className="flex flex-col items-center py-16">
+            <SearchPlane flying={false} />
+            <p className="mt-3 text-sm text-muted">{t("emptyHint")}</p>
+          </div>
+        ) : null}
+
         {itineraries.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse text-sm">
-              <thead>
-                <tr className={`border-b border-line text-left font-mono text-[11px] text-muted ${locale === "zh-TW" ? "tracking-normal" : "uppercase tracking-widest"}`}>
-                  <th className="py-2 pr-3">{t("price")}</th>
-                  <th className="py-2 pr-3">{t("dates")}</th>
-                  <th className="py-2 pr-3">{t("outbound")}</th>
-                  <th className="py-2 pr-3">{t("inbound")}</th>
-                  <th className="py-2 pr-3">{t("stops")}</th>
-                  <th className="py-2 pr-3">{t("layover")}</th>
-                  <th className="py-2 pr-3">{t("airlines")}</th>
-                  <th className="py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {itineraries.map((itinerary) => {
-                  const open = expanded === itinerary.id;
-                  const outLay = longestLayover(itinerary.outbound);
-                  const inLay = longestLayover(itinerary.inbound);
-                  const layover = [outLay, inLay]
-                    .filter((value): value is number => value != null)
-                    .map((value) => formatDuration(value, t))
-                    .join(" / ") || "—";
-                  return (
-                    <FragmentRow
-                      key={itinerary.id}
-                      itinerary={itinerary}
-                      open={open}
-                      layover={layover}
-                      locale={locale}
-                      t={t}
-                      month={month}
-                      onToggle={() => setExpanded(open ? null : itinerary.id)}
-                    />
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid gap-3">
+            {itineraries.map((itinerary) => (
+              <DealCard
+                key={itinerary.id}
+                itinerary={itinerary}
+                open={expanded === itinerary.id}
+                locale={locale}
+                t={t}
+                month={month}
+                onToggle={() => setExpanded(expanded === itinerary.id ? null : itinerary.id)}
+              />
+            ))}
           </div>
         ) : null}
         {itineraries.some((itinerary) => estimateCheckedBagFee(itinerary).extraTwd > 0) ? (
           <p className="mt-3 max-w-2xl text-xs text-muted">{t("bagNote")}</p>
         ) : null}
-      </section>
+        </section>
+      </div>
+    </form>
+  );
+}
+
+function stopsLabel(
+  stops: number,
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string,
+): string {
+  if (stops === 0) return t("nonstop");
+  if (stops === 1) return t("oneStop");
+  return t("twoStops");
+}
+
+function LegStrip({
+  title,
+  leg,
+  t,
+}: {
+  title: string;
+  leg: Leg;
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string;
+}) {
+  const layover = longestLayover(leg);
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-semibold text-muted">{title}</p>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+        <div>
+          <p className="font-mono text-base font-semibold leading-none">{clock(leg.departAt)}</p>
+          <p className="mt-1 text-xs text-muted">{leg.from}</p>
+        </div>
+        <div className="min-w-0 px-1 text-center">
+          <p className="font-mono text-[11px] text-muted">{formatDuration(leg.durationMinutes, t)}</p>
+          <div className="leg-bar" />
+          <p className="text-[11px] text-muted">
+            {stopsLabel(leg.stops, t)}
+            {layover != null ? ` · ${formatDuration(layover, t)}` : ""}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="font-mono text-base font-semibold leading-none">{clock(leg.arriveAt)}</p>
+          <p className="mt-1 text-xs text-muted">{leg.to}</p>
+        </div>
+      </div>
     </div>
   );
 }
 
-function FragmentRow({
+function DealCard({
   itinerary,
   open,
-  layover,
   locale,
   t,
   month,
@@ -743,7 +765,6 @@ function FragmentRow({
 }: {
   itinerary: Itinerary;
   open: boolean;
-  layover: string;
   locale: Locale;
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
   month: (index: number) => string;
@@ -755,59 +776,51 @@ function FragmentRow({
   );
   const bag = estimateCheckedBagFee(itinerary);
   return (
-    <>
-      <tr className="border-b border-line/80 align-top hover:bg-fill/60">
-        <td className="py-3 pr-3 font-mono text-base font-medium text-price">
-          {formatPrice(itinerary.price, itinerary.currency)}
-          {bag.extraTwd > 0 ? (
-            <div className="mt-0.5 text-[11px] font-normal text-muted">
-              {t("bagEst", { amount: formatPrice(bag.extraTwd, itinerary.currency) })}
-            </div>
-          ) : null}
-        </td>
-        <td className="py-3 pr-3 font-mono">
-          {shortDate(itinerary.outboundDate, locale, month)} - {shortDate(itinerary.returnDate, locale, month)}
-        </td>
-        <td className="py-3 pr-3 font-mono">
-          {clock(itinerary.outbound.departAt)} → {clock(itinerary.outbound.arriveAt)}
-          <span className="ml-2 text-muted">{formatDuration(itinerary.outbound.durationMinutes, t)}</span>
-        </td>
-        <td className="py-3 pr-3 font-mono">
-          {clock(itinerary.inbound.departAt)} → {clock(itinerary.inbound.arriveAt)}
-          <span className="ml-2 text-muted">{formatDuration(itinerary.inbound.durationMinutes, t)}</span>
-        </td>
-        <td className="py-3 pr-3 font-mono">
-          {itinerary.outbound.stops}/{itinerary.inbound.stops}
-        </td>
-        <td className="py-3 pr-3 font-mono">{layover}</td>
-        <td className="py-3 pr-3">{airlines || "—"}</td>
-        <td className="py-3 text-right">
-          <button type="button" className="mr-3 font-mono text-xs underline" onClick={onToggle}>
-            {open ? t("hide") : t("legs")}
-          </button>
+    <article className="overflow-hidden rounded-[var(--radius)] border border-line border-l-4 border-l-navy bg-fill">
+      <div className="deal-card">
+        <div className="flex flex-col justify-center">
+          <p className="text-sm font-semibold leading-snug">{airlines || "—"}</p>
+          <p className="mt-1 font-mono text-xs text-muted">
+            {shortDate(itinerary.outboundDate, locale, month)} – {shortDate(itinerary.returnDate, locale, month)}
+          </p>
+        </div>
+        <div className="grid gap-3">
+          <LegStrip title={t("outbound")} leg={itinerary.outbound} t={t} />
+          <LegStrip title={t("inbound")} leg={itinerary.inbound} t={t} />
+        </div>
+        <div className="deal-price">
+          <p className="font-mono text-2xl font-semibold leading-none text-price">
+            {formatPrice(itinerary.price, itinerary.currency)}
+          </p>
+          <p className="text-[11px] text-muted">
+            {bag.extraTwd > 0
+              ? t("bagEst", { amount: formatPrice(bag.extraTwd, itinerary.currency) })
+              : t("bagsIncluded")}
+          </p>
           {itinerary.googleFlightsUrl ? (
             <a
               href={itinerary.googleFlightsUrl}
               target="_blank"
               rel="noreferrer"
-              className="font-mono text-xs underline"
+              className="inline-flex h-9 w-full items-center justify-center bg-price text-sm font-semibold text-ink"
             >
-              {t("googleFlights")}
+              {t("viewDeal")}
             </a>
           ) : null}
-        </td>
-      </tr>
+          <button type="button" className="text-xs font-medium text-navy underline" onClick={onToggle}>
+            {open ? t("hide") : t("legs")}
+          </button>
+        </div>
+      </div>
       {open ? (
-        <tr className="border-b border-line bg-fill/40">
-          <td colSpan={8} className="px-3 py-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <LegDetails title={t("outbound")} leg={itinerary.outbound} locale={locale} t={t} />
-              <LegDetails title={t("inbound")} leg={itinerary.inbound} locale={locale} t={t} />
-            </div>
-          </td>
-        </tr>
+        <div className="border-t border-line bg-paper/80 px-4 py-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <LegDetails title={t("outbound")} leg={itinerary.outbound} locale={locale} t={t} />
+            <LegDetails title={t("inbound")} leg={itinerary.inbound} locale={locale} t={t} />
+          </div>
+        </div>
       ) : null}
-    </>
+    </article>
   );
 }
 
