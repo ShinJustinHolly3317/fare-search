@@ -123,10 +123,13 @@ async function poolEach<T>(
 async function loadPage(args: {
   key: string;
   fetch: () => Promise<ScrapedPage>;
+  bypassCache?: boolean;
 }): Promise<{ page: ScrapedPage; cached: boolean; credited: boolean }> {
-  const hit = await cacheGet<ScrapedPage>(args.key);
-  if (hit) {
-    return { page: hit, cached: true, credited: false };
+  if (!args.bypassCache) {
+    const hit = await cacheGet<ScrapedPage>(args.key);
+    if (hit) {
+      return { page: hit, cached: true, credited: false };
+    }
   }
   const page = await args.fetch();
   if (page.options.length > 0) {
@@ -165,6 +168,7 @@ async function searchPair(
   query: SearchQuery,
   pair: DatePair,
   signal?: AbortSignal,
+  bypassCache = false,
 ): Promise<PairResult> {
   let creditsUsed = 0;
   let cached = true;
@@ -177,6 +181,7 @@ async function searchPair(
       outboundDate: pair.outboundDate,
       returnDate: pair.returnDate,
     }),
+    bypassCache,
     fetch: () =>
       scrapeOutbound({
         origin: query.origin,
@@ -231,6 +236,7 @@ async function searchPair(
 
     const returnSearch = await loadPage({
       key: returnCacheKey(fingerprint),
+      bypassCache,
       fetch: () =>
         scrapeReturns({
           origin: query.origin,
@@ -291,9 +297,23 @@ async function searchPair(
   };
 }
 
+export type SearchOptions = {
+  /** 略過 .cache，重新抓票（售完／過期時用） */
+  bypassCache?: boolean;
+};
+
+export function searchOptionsFromBody(body: unknown): SearchOptions {
+  return {
+    bypassCache: Boolean(
+      body && typeof body === "object" && (body as { bypassCache?: unknown }).bypassCache === true,
+    ),
+  };
+}
+
 export async function* runSearch(
   query: SearchQuery,
   signal?: AbortSignal,
+  options: SearchOptions = {},
 ): AsyncGenerator<SearchEvent> {
   let pairs: DatePair[];
   try {
@@ -372,7 +392,7 @@ export async function* runSearch(
       return;
     }
     try {
-      queue.push(await searchPair(pairQuery, pair, signal));
+      queue.push(await searchPair(pairQuery, pair, signal, options.bypassCache));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Search failed";
       queue.push({
@@ -409,12 +429,16 @@ export async function* runSearch(
   };
 }
 
-export async function runSearchAll(query: SearchQuery, signal?: AbortSignal) {
+export async function runSearchAll(
+  query: SearchQuery,
+  signal?: AbortSignal,
+  options: SearchOptions = {},
+) {
   const itineraries: Itinerary[] = [];
   let summary: Extract<SearchEvent, { type: "done" }> | null = null;
   let error: string | null = null;
 
-  for await (const event of runSearch(query, signal)) {
+  for await (const event of runSearch(query, signal, options)) {
     if (event.type === "error") error = event.message;
     if (event.type === "pair") itineraries.push(...event.pair.itineraries);
     if (event.type === "done") summary = event;

@@ -74,7 +74,7 @@ async function waitForResults(page: Page) {
         const text = document.body?.innerText ?? "";
         return (
           /\d{1,2}:\d{2}/.test(text) &&
-          /(TWD|NT\$|Nonstop|\d+\s+stops?)/i.test(text)
+          /(TWD|NT\$|Nonstop|\d+\s+stops?|直飛|\d+\s*次轉機)/i.test(text)
         );
       },
       { timeout: 45000 },
@@ -98,7 +98,7 @@ async function expandCardDetails(page: Page) {
     for (const button of document.querySelectorAll("[role='listitem'] button[aria-expanded='false'], li button[aria-expanded='false']")) {
       if (!(button instanceof HTMLButtonElement)) continue;
       const label = (button.getAttribute("aria-label") ?? "").toLowerCase();
-      if (!label.includes("flight details") && !label.includes("details")) continue;
+      if (!label.includes("flight details") && !label.includes("details") && !label.includes("詳情")) continue;
       button.click();
     }
   });
@@ -117,7 +117,7 @@ async function collectCardRows(
       const text = node.innerText?.trim() ?? "";
       if (text.length < 50 || text.length > limit) continue;
       if (!/\d{1,2}:\d{2}/.test(text)) continue;
-      if (!/(TWD|NT\$|Nonstop|\d+\s+stops?)/i.test(text)) continue;
+      if (!/(TWD|NT\$|Nonstop|\d+\s+stops?|直飛|\d+\s*次轉機)/i.test(text)) continue;
       const aria = [
         node.getAttribute("aria-label") ?? "",
         ...[...node.querySelectorAll("[aria-label]")].map((el) => el.getAttribute("aria-label") ?? ""),
@@ -132,6 +132,25 @@ async function collectCardRows(
   }, maxLen);
 }
 
+function mergeScraped(existing: ScrapedOption, incoming: ScrapedOption): ScrapedOption {
+  return {
+    ...existing,
+    flights:
+      incoming.flights.length >= existing.flights.length ? incoming.flights : existing.flights,
+    bookingUrl: incoming.bookingUrl || existing.bookingUrl,
+    layoverMinutes:
+      Math.max(existing.layoverMinutes ?? 0, incoming.layoverMinutes ?? 0) ||
+      existing.layoverMinutes ||
+      incoming.layoverMinutes,
+    layoverAirport: existing.layoverAirport || incoming.layoverAirport,
+    overnight: existing.overnight || incoming.overnight,
+    airportChange: existing.airportChange || incoming.airportChange,
+    stops: Math.max(existing.stops, incoming.stops),
+    cardText:
+      incoming.cardText.length < existing.cardText.length ? incoming.cardText : existing.cardText,
+  };
+}
+
 function parseRows(
   rows: { text: string; aria: string; href: string }[],
   args: { from: string; to: string; date: string },
@@ -144,18 +163,7 @@ function parseRows(
     if (option.flights.length === 0) option.flights = parseFlightIds(`${row.text}\n${row.aria}`);
     const key = optionFingerprint(option);
     const existing = byKey.get(key);
-    const flights =
-      !existing || option.flights.length >= existing.flights.length
-        ? option.flights
-        : existing.flights;
-    const bookingUrl = option.bookingUrl || existing?.bookingUrl || null;
-    if (
-      !existing ||
-      flights.length > existing.flights.length ||
-      option.cardText.length < existing.cardText.length
-    ) {
-      byKey.set(key, { ...option, flights, bookingUrl });
-    }
+    byKey.set(key, existing ? mergeScraped(existing, option) : option);
   }
   return [...byKey.values()];
 }
@@ -182,10 +190,18 @@ async function extractCards(
   const compact = parseRows(await collectCardRows(page), args);
   await expandCardDetails(page);
   const expandedRows = await collectCardRows(page, 5000);
-  for (const row of expandedRows) {
-    attachFlightsFromDetails(compact, `${row.text}\n${row.aria}`);
+  const expanded = parseRows(expandedRows, args);
+  const byKey = new Map(compact.map((option) => [optionFingerprint(option), option]));
+  for (const option of expanded) {
+    const key = optionFingerprint(option);
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? mergeScraped(existing, option) : option);
   }
-  return compact.sort((a, b) => a.price - b.price);
+  const options = [...byKey.values()];
+  for (const row of expandedRows) {
+    attachFlightsFromDetails(options, `${row.text}\n${row.aria}`);
+  }
+  return options.sort((a, b) => a.price - b.price);
 }
 
 async function extractSelectedOutbound(page: Page): Promise<FlightId[]> {

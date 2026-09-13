@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowClockwise } from "@phosphor-icons/react";
 import {
   useEffect,
   useMemo,
@@ -16,7 +17,7 @@ import { SearchPlane } from "@/components/search-plane";
 import { estimateCheckedBagFee, formatAirlineList } from "@/lib/airlines";
 import { destinationAirports } from "@/lib/airports";
 import { expandDatePairs } from "@/lib/dates";
-import { rankItineraries } from "@/lib/filter";
+import { longestLayoverMinutes, rankItineraries } from "@/lib/filter";
 import { type Locale, type MessageKey } from "@/lib/i18n";
 import { useI18n } from "@/lib/use-i18n";
 import {
@@ -143,11 +144,6 @@ function formatPrice(price: number, currency: string): string {
   }).format(price);
 }
 
-function longestLayover(leg: Leg): number | null {
-  if (leg.layovers.length === 0) return null;
-  return Math.max(...leg.layovers.map((layover) => layover.durationMinutes));
-}
-
 function parseSseChunk(
   buffer: string,
   onEvent: (event: SearchEvent) => void,
@@ -231,6 +227,8 @@ export function SearchApp() {
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const bypassCacheRef = useRef(false);
+  const [liveSearch, setLiveSearch] = useState(false);
 
   const dests = useMemo(
     () => destinationAirports(form.destination, form.origin),
@@ -284,11 +282,14 @@ export function SearchApp() {
 
   async function onSearch(event: FormEvent) {
     event.preventDefault();
+    const bypassCache = bypassCacheRef.current;
+    bypassCacheRef.current = false;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
     setSearching(true);
+    setLiveSearch(bypassCache);
     setError(null);
     setItineraries([]);
     setDumped(0);
@@ -302,7 +303,7 @@ export function SearchApp() {
       const response = await fetch("/api/search/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, bypassCache }),
         signal: controller.signal,
       });
       if (!response.ok || !response.body) {
@@ -360,6 +361,7 @@ export function SearchApp() {
       setError(err instanceof Error ? err.message : t("searchFailed"));
     } finally {
       setSearching(false);
+      setLiveSearch(false);
     }
   }
 
@@ -404,7 +406,7 @@ export function SearchApp() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 items-end gap-3 md:grid-cols-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_repeat(4,minmax(0,1fr))_8.75rem]">
+          <div className="grid grid-cols-2 items-end gap-3 md:grid-cols-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_repeat(4,minmax(0,1fr))_10.5rem]">
             <AirportField
               id="origin"
               label={t("from")}
@@ -451,13 +453,31 @@ export function SearchApp() {
               onChange={(iso) => patch("returnTo", iso)}
             />
             <div className="col-span-2 flex items-end md:col-span-1">
-              <button
-                type="submit"
-                disabled={searching || overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
-                className="search-submit w-full disabled:active:scale-100"
-              >
-                {searching ? t("searching") : t("search")}
-              </button>
+              <div className="search-split">
+                <button
+                  type="submit"
+                  disabled={searching || overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
+                  className="search-submit disabled:active:scale-100"
+                  title={t("forceSearchHint")}
+                  onClick={(event) => {
+                    bypassCacheRef.current = event.shiftKey || event.altKey;
+                  }}
+                >
+                  {searching ? (liveSearch ? t("searchingLive") : t("searching")) : t("search")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={searching || overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
+                  className="search-submit search-force disabled:active:scale-100"
+                  title={t("forceSearchHint")}
+                  aria-label={t("forceSearch")}
+                  onClick={() => {
+                    bypassCacheRef.current = true;
+                  }}
+                >
+                  <ArrowClockwise size={18} weight="bold" aria-hidden />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -729,7 +749,7 @@ function LegStrip({
   leg: Leg;
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
 }) {
-  const layover = longestLayover(leg);
+  const layover = leg.stops > 0 ? longestLayoverMinutes(leg) : null;
   return (
     <div>
       <p className="mb-1 text-[11px] font-semibold text-muted">{title}</p>

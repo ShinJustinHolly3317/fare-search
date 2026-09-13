@@ -68,6 +68,9 @@ export const messages = {
     noAirportChange: "No airport change",
     search: "Search",
     searching: "Searching…",
+    searchingLive: "Live scrape…",
+    forceSearch: "Force search",
+    forceSearchHint: "Skip cache and scrape live. Use when tickets may be gone.",
     invertedDates: "Date range is inverted.",
     overCap: "{count} searches, over the {max} cap. Shrink dates or pick a city, not a whole country.",
     creditEstimate:
@@ -175,6 +178,9 @@ export const messages = {
     noAirportChange: "不可換機場",
     search: "搜尋",
     searching: "搜尋中…",
+    searchingLive: "即時抓取中…",
+    forceSearch: "強制搜尋",
+    forceSearchHint: "略過快取、重新抓票。票可能已賣完或快取過期時用。",
     invertedDates: "日期區間反了。",
     overCap: "{count} 組搜尋，超過上限 {max}。縮小日期，或改選城市而不是整個國家。",
     creditEstimate:

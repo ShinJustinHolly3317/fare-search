@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { validateQuery } from "./search";
+import { searchOptionsFromBody, validateQuery } from "./search";
 import { makeQuery } from "./test-helpers";
 
 describe("validateQuery destination", () => {
@@ -24,5 +24,13 @@ describe("validateQuery destination", () => {
   it("still accepts a single IATA", () => {
     const query = validateQuery(makeQuery({ destination: "icn" }));
     assert.equal(query.destination, "icn");
+  });
+});
+
+describe("searchOptionsFromBody", () => {
+  it("defaults to cache", () => {
+    assert.equal(searchOptionsFromBody({}).bypassCache, false);
+    assert.equal(searchOptionsFromBody({ bypassCache: true }).bypassCache, true);
+    assert.equal(searchOptionsFromBody({ bypassCache: "yes" }).bypassCache, false);
   });
 });

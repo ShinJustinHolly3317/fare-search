@@ -1,6 +1,6 @@
 import { PairCapError } from "@/lib/dates";
 import { ScrapeError } from "@/lib/playwright-flights";
-import { runSearchAll, validateQuery } from "@/lib/search";
+import { runSearchAll, searchOptionsFromBody, validateQuery } from "@/lib/search";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   try {
     const query = validateQuery(body);
-    const result = await runSearchAll(query, request.signal);
+    const result = await runSearchAll(query, request.signal, searchOptionsFromBody(body));
     if (!result.ok) {
       return Response.json({ error: result.error }, { status: 400 });
     }

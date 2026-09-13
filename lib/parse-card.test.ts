@@ -65,13 +65,47 @@ describe("parseCardText", () => {
 
   it("parses a +1 arrival and a layover", () => {
     const option = parseCardText(
-      "EVA Air\n10:15 PM – 6:45 AM+1\n1 stop in HKG\n8 hr 30 min\nTWD 7,200",
+      "EVA Air\n10:15 PM – 6:45 AM+1\n1 stop in HKG\n2 hr layover\n8 hr 30 min\nTWD 7,200",
       { from: "TPE", to: "NRT", date: "2026-09-10" },
     );
     assert.ok(option);
     assert.equal(option.arriveDayOffset, 1);
     assert.equal(option.stops, 1);
     assert.equal(option.layoverAirport, "HKG");
+    assert.equal(option.layoverMinutes, 120);
+    assert.equal(option.durationMinutes, 510);
     assert.equal(option.price, 7200);
+  });
+
+  it("parses layover when the word comes first", () => {
+    const option = parseCardText(
+      "Greater Bay Airlines\n10:45 AM – 3:00 PM+1\n1 stop\nLayover 22 hr 10 min in HKG\n27 hr 15 min\nTWD 15,526",
+      { from: "TPE", to: "CTS", date: "2027-02-24" },
+    );
+    assert.ok(option);
+    assert.equal(option.stops, 1);
+    assert.equal(option.durationMinutes, 1635);
+    assert.equal(option.layoverMinutes, 1330);
+    assert.equal(option.layoverAirport, "HKG");
+  });
+
+  it("infers a long layover when Google only says 1 stop", () => {
+    const option = parseCardText(
+      "Greater Bay Airlines\n10:45 AM – 3:00 PM+1\n1 stop in HKG\n27 hr 15 min\nTWD 15,526",
+      { from: "TPE", to: "CTS", date: "2027-02-24" },
+    );
+    assert.ok(option);
+    assert.equal(option.stops, 1);
+    assert.ok((option.layoverMinutes ?? 0) > 180);
+  });
+
+  it("parses Traditional Chinese stops", () => {
+    const option = parseCardText(
+      "大灣區航空\n10:45 – 15:00+1\n1 次轉機\n27 小時 15 分鐘\nTWD 15,526",
+      { from: "TPE", to: "CTS", date: "2027-02-24" },
+    );
+    assert.ok(option);
+    assert.equal(option.stops, 1);
+    assert.equal(option.durationMinutes, 1635);
   });
 });

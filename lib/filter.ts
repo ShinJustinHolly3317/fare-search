@@ -37,9 +37,16 @@ export function inTimeRange(
   return true;
 }
 
-function longestLayover(leg: Leg): number {
-  if (leg.layovers.length === 0) return 0;
-  return Math.max(...leg.layovers.map((layover) => layover.durationMinutes));
+/** 摺疊卡沒寫轉機分鐘時，用總時長扣每段最低空中時間（舊快取 layover=0 也吃這套） */
+export function longestLayoverMinutes(leg: Leg): number {
+  const stated =
+    leg.layovers.length === 0
+      ? 0
+      : Math.max(...leg.layovers.map((layover) => layover.durationMinutes));
+  if (leg.stops > 0 && stated <= 0) {
+    return Math.max(0, leg.durationMinutes - 90 * (leg.stops + 1));
+  }
+  return stated;
 }
 
 export function legTimeReject(
@@ -77,7 +84,7 @@ export function legConstraintReject(
   if (leg.stops > query.maxStops) return "max_stops";
   if (
     query.maxLayoverMinutes != null &&
-    longestLayover(leg) > query.maxLayoverMinutes
+    longestLayoverMinutes(leg) > query.maxLayoverMinutes
   ) {
     return "max_layover";
   }

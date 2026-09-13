@@ -91,6 +91,22 @@ describe("itineraryReject", () => {
     );
   });
 
+  it("dumps a 27h one-stop when Google left layover minutes at 0", () => {
+    const itinerary = makeItinerary({
+      outbound: makeLeg({
+        departAt: "2027-02-24 10:45",
+        arriveAt: "2027-02-25 15:00",
+        durationMinutes: 1635,
+        stops: 1,
+        layovers: [{ airport: "HKG", durationMinutes: 0, overnight: true }],
+      }),
+    });
+    assert.equal(
+      itineraryReject(itinerary, makeQuery({ maxLayoverMinutes: 180 })),
+      "max_layover",
+    );
+  });
+
   it("dumps airport change unless allowed", () => {
     const itinerary = makeItinerary({
       outbound: makeLeg({

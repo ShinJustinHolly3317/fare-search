@@ -163,6 +163,27 @@ html[lang="zh-TW"] legend {
   font-weight: 600;
 }
 
+.site-header .search-split {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.site-header .search-split .search-submit:not(.search-force) {
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.site-header .search-force {
+  flex: 0 0 3.25rem;
+  width: 3.25rem;
+  padding: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid rgb(14 63 63 / 0.18);
+}
+
 .date-popover,
 .suggest-list {
   border-radius: var(--radius);
