@@ -9,7 +9,7 @@ import {
 } from "./filter";
 import { itineraryGoogleFlightsUrl, mergeRoundTrip, scrapedToLeg } from "./normalize";
 import { optionFingerprint, type ScrapedOption } from "./parse-card";
-import { scrapeOutbound, scrapeReturns, type ScrapedPage } from "./playwright-flights";
+import { abortScrape, scrapeOutbound, scrapeReturns, type ScrapedPage } from "./playwright-flights";
 import {
   MAX_DATE_PAIRS,
   MAX_RETURN_LOOKUPS_PER_PAIR,
@@ -368,6 +368,14 @@ export async function* runSearch(
   }
 
   yield { type: "start", pairCount: jobs.length, maxPairs: MAX_DATE_PAIRS };
+
+  signal?.addEventListener(
+    "abort",
+    () => {
+      void abortScrape();
+    },
+    { once: true },
+  );
 
   const queue = createPairQueue();
   let finished = 0;

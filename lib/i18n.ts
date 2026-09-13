@@ -71,6 +71,9 @@ export const messages = {
     searchingLive: "Live scrape…",
     forceSearch: "Force search",
     forceSearchHint: "Skip cache and scrape live. Use when tickets may be gone.",
+    stopSearch: "Stop",
+    stopSearchHint: "Abort the scrape. Keep whatever already came back.",
+    searchStopped: "Stopped. Showing whatever came back.",
     invertedDates: "Date range is inverted.",
     overCap: "{count} searches, over the {max} cap. Shrink dates or pick a city, not a whole country.",
     creditEstimate:
@@ -181,6 +184,9 @@ export const messages = {
     searchingLive: "即時抓取中…",
     forceSearch: "強制搜尋",
     forceSearchHint: "略過快取、重新抓票。票可能已賣完或快取過期時用。",
+    stopSearch: "停止",
+    stopSearchHint: "中斷抓取，已回來的結果會留著。",
+    searchStopped: "已停止。下面是中斷前抓到的結果。",
     invertedDates: "日期區間反了。",
     overCap: "{count} 組搜尋，超過上限 {max}。縮小日期，或改選城市而不是整個國家。",
     creditEstimate:

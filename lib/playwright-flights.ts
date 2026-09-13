@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Page } from "playwright";
-import { withPage } from "./browser";
+import { withPage, killBrowser } from "./browser";
 import { googleFlightsSearchUrl } from "./normalize";
 import {
   optionFingerprint,
@@ -18,6 +18,10 @@ export class ScrapeError extends Error {
     super(message);
     this.name = "ScrapeError";
   }
+}
+
+export async function abortScrape(): Promise<void> {
+  await killBrowser();
 }
 
 export type ScrapedPage = {

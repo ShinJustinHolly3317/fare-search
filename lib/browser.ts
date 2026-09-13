@@ -61,3 +61,12 @@ export async function withPage<T>(fn: (page: Page) => Promise<T>): Promise<T> {
     release();
   }
 }
+
+/** 強制停搜：關掉 headed Chromium，下一輪會重開 */
+export async function killBrowser(): Promise<void> {
+  const current = store();
+  const context = current.context;
+  current.page = undefined;
+  current.context = undefined;
+  await context?.close().catch(() => undefined);
+}

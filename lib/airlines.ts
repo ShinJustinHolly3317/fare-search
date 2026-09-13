@@ -32,6 +32,7 @@ const AIRLINES: Airline[] = [
   { iata: "RS", zh: "首爾航空", names: ["Air Seoul"], checkedBagTwd: 900 },
   { iata: "CX", zh: "國泰航空", names: ["Cathay Pacific"] },
   { iata: "HX", zh: "香港航空", names: ["Hong Kong Airlines"] },
+  { iata: "HB", zh: "大灣區航空", names: ["Greater Bay Airlines", "Greater Bay"] },
   { iata: "UO", zh: "香港快運", names: ["HK Express"], checkedBagTwd: 1000 },
   { iata: "SQ", zh: "新加坡航空", names: ["Singapore Airlines"] },
   { iata: "TR", zh: "酷航", names: ["Scoot"], checkedBagTwd: 1000 },
@@ -102,6 +103,27 @@ export function lookupAirline(value: string): Airline | undefined {
   if (!raw) return undefined;
   if (/^[A-Z0-9]{2}$/i.test(raw)) return BY_IATA.get(raw.toUpperCase());
   return BY_NAME.get(norm(raw));
+}
+
+/** 給 logo CDN 用。未知航空若已是 IATA 就原樣。 */
+export function airlineIata(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+  const airline = lookupAirline(raw);
+  if (airline) return airline.iata;
+  return /^[A-Z0-9]{2}$/i.test(raw) ? raw.toUpperCase() : null;
+}
+
+export function uniqueAirlineCodes(values: string[]): string[] {
+  const seen = new Set<string>();
+  const keys: string[] = [];
+  for (const value of values) {
+    const key = airlineIata(value) ?? value.trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+  return keys;
 }
 
 /** 繁中顯示中文名；英文維持刮下來的字。找不到就原樣。 */

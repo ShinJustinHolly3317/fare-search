@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { ArrowClockwise, Stop } from "@phosphor-icons/react";
 import {
   useEffect,
   useMemo,
@@ -10,15 +10,17 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { AirlineLogo } from "@/components/airline-logo";
 import { AirportField } from "@/components/airport-field";
 import { DateField } from "@/components/date-field";
 import { GroupIcon, type GroupIconName } from "@/components/group-icon";
 import { SearchPlane } from "@/components/search-plane";
-import { estimateCheckedBagFee, formatAirlineList } from "@/lib/airlines";
+import { estimateCheckedBagFee, formatAirline, formatAirlineList, uniqueAirlineCodes } from "@/lib/airlines";
 import { destinationAirports } from "@/lib/airports";
 import { expandDatePairs } from "@/lib/dates";
-import { longestLayoverMinutes, rankItineraries } from "@/lib/filter";
+import { rankItineraries } from "@/lib/filter";
 import { type Locale, type MessageKey } from "@/lib/i18n";
+import { legTimeline } from "@/lib/timeline";
 import { useI18n } from "@/lib/use-i18n";
 import {
   MAX_DATE_PAIRS,
@@ -229,6 +231,7 @@ export function SearchApp() {
   const abortRef = useRef<AbortController | null>(null);
   const bypassCacheRef = useRef(false);
   const [liveSearch, setLiveSearch] = useState(false);
+  const [stopped, setStopped] = useState(false);
 
   const dests = useMemo(
     () => destinationAirports(form.destination, form.origin),
@@ -290,6 +293,7 @@ export function SearchApp() {
 
     setSearching(true);
     setLiveSearch(bypassCache);
+    setStopped(false);
     setError(null);
     setItineraries([]);
     setDumped(0);
@@ -357,7 +361,10 @@ export function SearchApp() {
         });
       }
     } catch (err) {
-      if ((err as Error).name === "AbortError") return;
+      if ((err as Error).name === "AbortError") {
+        setStopped(true);
+        return;
+      }
       setError(err instanceof Error ? err.message : t("searchFailed"));
     } finally {
       setSearching(false);
@@ -453,31 +460,43 @@ export function SearchApp() {
               onChange={(iso) => patch("returnTo", iso)}
             />
             <div className="col-span-2 flex items-end md:col-span-1">
-              <div className="search-split">
+              {searching ? (
                 <button
-                  type="submit"
-                  disabled={searching || overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
-                  className="search-submit disabled:active:scale-100"
-                  title={t("forceSearchHint")}
-                  onClick={(event) => {
-                    bypassCacheRef.current = event.shiftKey || event.altKey;
-                  }}
+                  type="button"
+                  className="search-submit search-stop"
+                  title={t("stopSearchHint")}
+                  onClick={() => abortRef.current?.abort()}
                 >
-                  {searching ? (liveSearch ? t("searchingLive") : t("searching")) : t("search")}
+                  <Stop size={16} weight="fill" aria-hidden />
+                  {t("stopSearch")}
                 </button>
-                <button
-                  type="submit"
-                  disabled={searching || overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
-                  className="search-submit search-force disabled:active:scale-100"
-                  title={t("forceSearchHint")}
-                  aria-label={t("forceSearch")}
-                  onClick={() => {
-                    bypassCacheRef.current = true;
-                  }}
-                >
-                  <ArrowClockwise size={18} weight="bold" aria-hidden />
-                </button>
-              </div>
+              ) : (
+                <div className="search-split">
+                  <button
+                    type="submit"
+                    disabled={overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
+                    className="search-submit disabled:active:scale-100"
+                    title={t("forceSearchHint")}
+                    onClick={(event) => {
+                      bypassCacheRef.current = event.shiftKey || event.altKey;
+                    }}
+                  >
+                    {t("search")}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={overCap || Boolean(pairInfo.invalid) || pairInfo.count === 0}
+                    className="search-submit search-force disabled:active:scale-100"
+                    title={t("forceSearchHint")}
+                    aria-label={t("forceSearch")}
+                    onClick={() => {
+                      bypassCacheRef.current = true;
+                    }}
+                  >
+                    <ArrowClockwise size={18} weight="bold" aria-hidden />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -683,6 +702,7 @@ export function SearchApp() {
         {reasonText ? <p className="mb-3 text-xs text-muted">{reasonText}</p> : null}
 
         {error ? <p className="text-sm text-price">{error}</p> : null}
+        {stopped ? <p className="mb-3 text-sm text-price">{t("searchStopped")}</p> : null}
 
         {!searching && !error && itineraries.length === 0 && dumped > 0 ? (
           <p className="rounded-[var(--radius)] border border-line bg-fill p-4 text-sm text-muted">
@@ -696,7 +716,7 @@ export function SearchApp() {
         {searching && itineraries.length === 0 ? (
           <div className="flex flex-col items-center py-16">
             <SearchPlane flying />
-            <p className="mt-3 text-sm text-muted">{t("searching")}</p>
+            <p className="mt-3 text-sm text-muted">{liveSearch ? t("searchingLive") : t("searching")}</p>
           </div>
         ) : null}
 
@@ -731,25 +751,18 @@ export function SearchApp() {
   );
 }
 
-function stopsLabel(
-  stops: number,
-  t: (key: MessageKey, vars?: Record<string, string | number>) => string,
-): string {
-  if (stops === 0) return t("nonstop");
-  if (stops === 1) return t("oneStop");
-  return t("twoStops");
-}
-
 function LegStrip({
   title,
   leg,
+  locale,
   t,
 }: {
   title: string;
   leg: Leg;
+  locale: Locale;
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
 }) {
-  const layover = leg.stops > 0 ? longestLayoverMinutes(leg) : null;
+  const parts = legTimeline(leg);
   return (
     <div>
       <p className="mb-1 text-[11px] font-semibold text-muted">{title}</p>
@@ -758,13 +771,45 @@ function LegStrip({
           <p className="font-mono text-base font-semibold leading-none">{clock(leg.departAt)}</p>
           <p className="mt-1 text-xs text-muted">{leg.from}</p>
         </div>
-        <div className="min-w-0 px-1 text-center">
-          <p className="font-mono text-[11px] text-muted">{formatDuration(leg.durationMinutes, t)}</p>
-          <div className="leg-bar" />
-          <p className="text-[11px] text-muted">
-            {stopsLabel(leg.stops, t)}
-            {layover != null ? ` · ${formatDuration(layover, t)}` : ""}
+        <div className="min-w-0 px-1">
+          <p className="mb-1 text-center font-mono text-[11px] text-muted">
+            {formatDuration(leg.durationMinutes, t)}
           </p>
+          <div className="leg-track">
+            {parts.map((part, index) =>
+              part.kind === "flight" ? (
+                <div
+                  key={`f-${index}`}
+                  className="leg-hop"
+                  style={{ flexGrow: Math.max(part.minutes, 45) }}
+                >
+                  <div className="leg-hop-airline">
+                    {part.airline ? <AirlineLogo code={part.airline} size={16} /> : null}
+                    <span className="truncate">
+                      {part.airline ? formatAirline(part.airline, locale) : "—"}
+                    </span>
+                  </div>
+                  <div className="leg-hop-bar" />
+                  <p className="leg-hop-meta">{formatDuration(part.minutes, t)}</p>
+                </div>
+              ) : (
+                <div
+                  key={`l-${index}`}
+                  className="leg-wait"
+                  style={{ flexGrow: Math.max(part.minutes, 40) }}
+                >
+                  <p className="leg-wait-label truncate">
+                    {part.airport || t("layover")}
+                  </p>
+                  <div className={`leg-wait-bar${part.overnight ? " is-overnight" : ""}`} />
+                  <p className="leg-hop-meta">
+                    {formatDuration(part.minutes, t)}
+                    {part.overnight ? t("overnight") : ""}
+                  </p>
+                </div>
+              ),
+            )}
+          </div>
         </div>
         <div className="text-right">
           <p className="font-mono text-base font-semibold leading-none">{clock(leg.arriveAt)}</p>
@@ -790,23 +835,34 @@ function DealCard({
   month: (index: number) => string;
   onToggle: () => void;
 }) {
-  const airlines = formatAirlineList(
-    [...itinerary.outbound.airlines, ...itinerary.inbound.airlines],
-    locale,
-  );
+  const rawAirlines = [
+    ...itinerary.outbound.segments.map((segment) => segment.airline),
+    ...itinerary.inbound.segments.map((segment) => segment.airline),
+    ...itinerary.outbound.airlines,
+    ...itinerary.inbound.airlines,
+  ];
+  const airlineCodes = uniqueAirlineCodes(rawAirlines);
+  const airlines = formatAirlineList(rawAirlines, locale);
   const bag = estimateCheckedBagFee(itinerary);
   return (
     <article className="overflow-hidden rounded-[var(--radius)] border border-line border-l-4 border-l-navy bg-fill">
       <div className="deal-card">
-        <div className="flex flex-col justify-center">
+        <div className="flex flex-col justify-center gap-2">
+          {airlineCodes.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {airlineCodes.map((code) => (
+                <AirlineLogo key={code} code={code} size={28} />
+              ))}
+            </div>
+          ) : null}
           <p className="text-sm font-semibold leading-snug">{airlines || "—"}</p>
-          <p className="mt-1 font-mono text-xs text-muted">
+          <p className="font-mono text-xs text-muted">
             {shortDate(itinerary.outboundDate, locale, month)} – {shortDate(itinerary.returnDate, locale, month)}
           </p>
         </div>
-        <div className="grid gap-3">
-          <LegStrip title={t("outbound")} leg={itinerary.outbound} t={t} />
-          <LegStrip title={t("inbound")} leg={itinerary.inbound} t={t} />
+        <div className="grid gap-4">
+          <LegStrip title={t("outbound")} leg={itinerary.outbound} locale={locale} t={t} />
+          <LegStrip title={t("inbound")} leg={itinerary.inbound} locale={locale} t={t} />
         </div>
         <div className="deal-price">
           <p className="font-mono text-2xl font-semibold leading-none text-price">

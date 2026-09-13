@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { estimateCheckedBagFee, formatAirline, formatAirlineList } from "./airlines";
+import { airlineIata, estimateCheckedBagFee, formatAirline, formatAirlineList } from "./airlines";
 import { makeItinerary, makeLeg } from "./test-helpers";
 
 describe("formatAirline", () => {
@@ -30,6 +30,12 @@ describe("formatAirline", () => {
 
   it("prefers IATA names in 繁中 so Jetstar Japan does not also show Jetstar", () => {
     assert.equal(formatAirlineList(["GK", "Jetstar"], "zh-TW"), "捷星日本");
+  });
+
+  it("resolves IATA for logos", () => {
+    assert.equal(airlineIata("Greater Bay Airlines"), "HB");
+    assert.equal(airlineIata("hb"), "HB");
+    assert.equal(airlineIata("Mystery Air"), null);
   });
 });
 
